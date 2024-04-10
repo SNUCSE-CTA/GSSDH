@@ -1,11 +1,11 @@
 #include <iostream>
 #include "Base/Timer.h"
 #include "DataStructure/LabeledGraph.h"
-#include "DataStructure/LabeledGraphDatabase.h"
+#include "GraphSimilarity/GraphSimilaritySearch.h"
 #include "GraphSimilarity/EditDistance.h"
 #include "DataStructure/Graph.h"
 using namespace std;
-using namespace GraphLib;
+using namespace GraphLib::GraphSimilarity;
 
 Timer timer;
 std::string data_root = "../data/GraphSimilaritySearch/";
@@ -38,40 +38,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    LabeledGraphDatabase DB;
-    DB.LoadGraphDatabase(dataset_path, 1);
-    DB.LoadGraphDatabase(query_path, 0);
-
-    auto data = DB.GetData();
-    auto queries = DB.GetQueries();
-
-    EditDistanceSolver ED(DB);
-    int total_num_candidates = 0, ans = 0;
-    for (int i = 0; i < queries.size(); i++) {
-        for (int j = 0; j < data.size(); j++) {
-            bool verify = ED.Initialize(queries[i], data[j], tau);
-            if (ED.GetCurrentBestGED() <= tau) {
-                total_num_candidates++;
-                ans++; continue;
-            }
-            if (verify) {
-                total_num_candidates++;
-                int ged = ED.AStar();
-                if (ged != -1) {
-                    ans++;
-                }
-            }
-            ResultLogger log = ED.GetLog();
-            logs.push_back(log);
-        }
-    }
-    ResultLogger aggregated_log;
-    aggregated_log.AddResult("TotalFilteringTime", Total(logs, "FilteringTime"), RESULT_DOUBLE_FIXED);
-    aggregated_log.AddResult("TotalAStarTime", Total(logs, "AStarTime"), RESULT_DOUBLE_FIXED);
-    aggregated_log.AddResult("NumCandidates", total_num_candidates, RESULT_INT);
-    aggregated_log.AddResult("Ans", ans, RESULT_INT);
-    aggregated_log.AddResult("TotalSearchSpace", (int64_t)Total(logs, "AStarNodes") , RESULT_INT64);
-    aggregated_log.AddResult("TotalMaxQueueSize", (int64_t)Total(logs, "MaxQueueSize"), RESULT_INT64);
-    aggregated_log.PrintResults();
+    GraphSimilaritySearch DB;
+    DB.LoadGraphDatabase(dataset_path, -1);
+//    auto data = DB.GetData();
+    DB.BuildBranches();
+    DB.LoadGraphDatabase(query_path, 7);
+    DB.GetLog().PrintResults();
     return 0;
 }

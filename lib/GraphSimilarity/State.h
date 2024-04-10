@@ -1,3 +1,4 @@
+#pragma once
 #include "DataStructure/LabeledGraph.h"
 
 static int NumG1Vertices = 0, NumG2Vertices = 0;

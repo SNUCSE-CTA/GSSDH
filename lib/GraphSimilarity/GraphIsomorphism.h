@@ -1,4 +1,5 @@
 #pragma once
+#include "Base/Timer.h"
 #include "StableColoring.h"
 static int global_state_idx = 0;
 namespace GraphLib {

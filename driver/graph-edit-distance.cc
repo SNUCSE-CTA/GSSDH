@@ -1,7 +1,7 @@
 #include <iostream>
 #include "Base/Timer.h"
 #include "DataStructure/LabeledGraph.h"
-#include "DataStructure/LabeledGraphDatabase.h"
+#include "GraphSimilarity/GraphSimilaritySearch.h"
 #include "GraphSimilarity/EditDistance.h"
 #include "DataStructure/Graph.h"
 using namespace std;

@@ -1,80 +1,30 @@
-#pragma once 
+#pragma once
 #include "DataStructure/LabeledGraph.h"
-#include "DataStructure/LabeledGraphDatabase.h"
+#include "GraphSimilaritySearch.h"
 #include "WeisfeilerLehman.h"
 #include "Base/Logger.h"
 #include "Base/Timer.h"
 #include "State.h"
+#include "DifferenceVector.h"
 
-struct DifferenceVector {
-    std::vector<int> value;
-    int pos = 0, neg = 0;
-    DifferenceVector(int sz = 0) {value.resize(sz, 0);}
 
-    void init(int sz) {value.resize(sz, 0); pos = neg = 0;}
-    void reset() { std::fill(value.begin(), value.end(), 0); pos = neg = 0;}
-
-    unsigned long size() const {return value.size();}
-
-    int& operator[](int index) {
-        return value[index];
-    }
-
-    // val should be +1 or -1
-    void update(int idx, int val) {
-        if (val > 1) {
-            for (int i = 0; i < val; i++) update(idx, 1);
-            return;
-        }
-        if (val < -1) {
-            for (int i = 0; i < -val; i++) update(idx, -1);
-            return;
-        }
-        if (value[idx] == 0) {
-            (val > 0 ? pos : neg)++;
-        }
-        else if (value[idx] < 0) {
-            neg += (val > 0 ? -1 : 1);
-        }
-        else if (value[idx] > 0) {
-            pos += (val > 0 ? 1 : -1);
-        }
-        value[idx] += val;
-    }
-
-    int GetSetDifferenceDistance() {
-        return std::max(pos, neg);
-    }
-};
-
-namespace GraphLib {
+namespace GraphLib::GraphSimilarity {
 bool verbosity = true;
 static int32_t LOG_EVERY = 50000;
 
-static int num_wl_iterations = 0;
 class EditDistanceSolver {
-    WeisfeilerLehman *WL = nullptr;
-    LabeledGraphDatabaseEntry *G1, *G2;
+    GSSEntry *G1, *G2;
     int threshold = -1, current_best = 1e9;
     long long num_nodes = 0;
     std::vector<int> current_best_mapping;
     std::priority_queue<State*, std::vector<State*>, StateComparator> queue;
-    DifferenceVector vertex_labels, edge_labels;
+    DifferenceVector *vlabel_diff, *elabel_diff;
     std::vector<int> matching_order;
-
     ResultLogger log;
 public:
 
     int GetCurrentBestGED() const {return current_best;}
     ResultLogger GetLog() {return log;}
-
-    LabeledGraphDatabaseEntry *GCombined = nullptr;
-
-    EditDistanceSolver(LabeledGraphDatabase &DB) {
-        vertex_labels.init(DB.GetNumGlobalVertexLabels()+1);
-        edge_labels.init(DB.GetNumGlobalEdgeLabels()+1);
-        printf("Intitializing edit distance solver...#Labels = (%lu, %lu)\n",vertex_labels.size(), edge_labels.size());
-    }
 
     void ComputeMatchingOrder() {
         int N = G1->GetNumVertices();
@@ -109,9 +59,10 @@ public:
         }
     }
 
-    bool Initialize(LabeledGraphDatabaseEntry *G1_, LabeledGraphDatabaseEntry *G2_, int threshold_ = -1) {
+
+    void Initialize(GSSEntry *G1_, GSSEntry *G2_, int threshold_ = -1,
+                    DifferenceVector *vlabel_diff_ = nullptr, DifferenceVector *elabel_diff_ = nullptr) {
         log.clear();
-        Timer timer; timer.Start();
         current_best = 1e9;
         // V(G1) <= V(G2)
         if (G1_->GetNumVertices() > G2_->GetNumVertices()) {
@@ -122,173 +73,17 @@ public:
             this->G1 = G1_;
             this->G2 = G2_;
         }
+        vlabel_diff = vlabel_diff_;
+        elabel_diff = elabel_diff_;
 
         this->threshold = threshold_;
-        if (this->threshold >= 0) {
-            if (!Verify()) {
-                timer.Stop();
-                log.AddResult("FilteringTime", timer.GetTime(), RESULT_DOUBLE_FIXED);
-                return false;
-            }
-        }
         NumG1Vertices = G1->GetNumVertices();
         NumG2Vertices = G2->GetNumVertices();
         matching_order.clear();
         ComputeMatchingOrder();
-        // fprintf(stderr,"Compute Edit Distance: %d-%d vertex\n", this->G1->GetNumVertices(), this->G2->GetNumVertices());
-        //
-        // fprintf(stderr,"MatchingOrder: ");
-        // for (auto x : matching_order) {
-        //     fprintf(stderr,"%d ", x);
-        // }
-        // fprintf(stderr,"\n");
         current_best_mapping.clear();
         current_best_mapping.resize(G1->GetNumVertices(), -1);
-        vertex_labels.reset();
-        edge_labels.reset();
         num_nodes = 0;
-        if (num_wl_iterations > 0) {
-            delete WL;
-            delete GCombined;
-            WL = nullptr;
-            GCombined = nullptr;
-
-            GCombined = new LabeledGraphDatabaseEntry();
-            GCombined->CombineGraph(G1, G2);
-            WL = new WeisfeilerLehman(this->GCombined);
-            WL->Reset(current_best_mapping);
-//            for (int i = 0; i < G1->GetNumVertices(); i++) {
-//                printf("We start from %d->%d\n", i, current_best_mapping[i]);
-//            }
-            WL->Refine(2);
-            WL->Match(current_best_mapping);
-//            for (int x : current_best_mapping) {
-//                fprintf(stderr, "%d ", x);
-//            }
-//            fprintf(stderr, "\n");
-            current_best = ComputeDistance(current_best_mapping, false);
-//            fprintf(stderr, "color-distance: %d\n", current_best);
-        }
-        else {
-            std::iota(current_best_mapping.begin(), current_best_mapping.end(), 0);
-            current_best = ComputeDistance(current_best_mapping, false);
-        }
-        timer.Stop();
-        log.AddResult("FilteringTime", timer.GetTime(), RESULT_DOUBLE_FIXED);
-        return true;
-//        exit(0);
-    }
-
-
-    int ComputeDistance(std::vector<int>& mapping, bool verbose=false) {
-        std::vector<int> inverse_mapping(G2->GetNumVertices(), -1);
-        for (int i = 0; i < G1->GetNumVertices(); i++) {
-            inverse_mapping[mapping[i]] = i;
-        }
-        return ComputeDistance(mapping, inverse_mapping, verbose);
-    }
-
-    int ComputeDistance(std::vector<int>& mapping, std::vector<int>& inverse_mapping, bool verbose = false) {
-        int cost = 0;
-        // vertex re-labeling cost
-        for (int i = 0; i < G1->GetNumVertices(); i++) {
-            int l1 = G1->GetVertexLabel(i);
-            int l2 = G2->GetVertexLabel(mapping[i]);
-            if (l1 != l2) {
-                if (verbose)
-                    printf("Vertex %d(%d)-%d(%d) re-labeling cost!\n", i, l1, mapping[i], l2);
-                cost++;
-            }
-        }
-        if (verbose)
-            printf("#Missing Vertices: %d\n",(G2->GetNumVertices() - G1->GetNumVertices()));
-        cost += (G2->GetNumVertices() - G1->GetNumVertices());
-        for (auto &[u, v] : G1->GetEdges()) {
-            int fu = mapping[u], fv = mapping[v];
-            int l1 = G1->GetEdgeLabel(u, v);
-            int l2 = G2->GetEdgeLabel(fu, fv);
-            if (l1 != l2) {
-                if (verbose)
-                    printf("Edge (%d, %d)(%d)-(%d, %d)(%d) re-labeling cost!\n",
-                           u,v,l1,fu,fv,l2);
-                cost++;
-            }
-        }
-        for (auto &[u, v] : G2->GetEdges()) {
-            int inv_u = inverse_mapping[u], inv_v = inverse_mapping[v];
-            if (inv_u == -1 || inv_v == -1) {
-                if (verbose)
-                    printf("Edge (%d, %d) in G2 is nonexistent as G1 is (%d, %d)\n",
-                           u, v, inv_u, inv_v);
-                cost++;
-            }
-            else {
-                int l = G1->GetEdgeLabel(inv_u, inv_v);
-                if (l == -1) {
-                    if (verbose)
-                        printf("Edge (%d, %d) in G2 is nonexistent as G1 is (%d, %d)\n",
-                               u, v, inv_u, inv_v);
-                    cost++;
-                }
-            }
-        }
-        if (verbose)
-            printf("Total ED Cost: %d\n",cost);
-        current_best = std::min(cost, current_best);
-        return cost;
-    }
-
-
-    int DegreeSequenceBound() {
-        int pos = 0, neg = 0;
-        auto &g1_deg = G1->GetDegreeSequence();
-        auto &g2_deg = G2->GetDegreeSequence();
-        for (int i = 0; i < G2->GetNumVertices(); i++) {
-            int a = (i >= G1->GetNumVertices()) ? 0 : g1_deg[i];
-            int b = g2_deg[i];
-            if (a > b) pos += (a - b);
-            if (a < b) neg += (b - a);
-        }
-        return (pos + 1) / 2 + (neg + 1) / 2;
-    }
-
-    int LabelSetLowerBound() {
-        vertex_labels.reset();
-        edge_labels.reset();
-        for (auto &[l, t] : G1->GetVertexLabelFrequency())
-            vertex_labels.update(l, t);
-        for (auto &[l, t] : G2->GetVertexLabelFrequency())
-            vertex_labels.update(l, -t);
-        for (auto &[l, t] : G1->GetEdgeLabelFrequency())
-            edge_labels.update(l, t);
-        for (auto &[l, t] : G2->GetEdgeLabelFrequency())
-            edge_labels.update(l, -t);
-        int cost = 0;
-        cost = vertex_labels.GetSetDifferenceDistance() + edge_labels.GetSetDifferenceDistance();
-        // fprintf(stderr, "LS Bound: %d\n", cost);
-        return cost;
-    }
-
-    int NaiveLowerBound() {
-        int bound = abs(G1->GetNumVertices() - G2->GetNumVertices()) + abs(G1->GetNumEdges() - G2->GetNumEdges());
-        // fprintf(stderr, "Naive Bound: %d\n", bound);
-        return bound;
-    }
-
-    bool Verify() {
-        if (NaiveLowerBound() > threshold) return false;
-        if (DegreeSequenceBound() > threshold) return false;
-        if (LabelSetLowerBound() > threshold) return false;
-        return true;
-    }
-
-    int flip(std::vector<int>& v, int idx, int dir) {
-        int t = 0;
-        t -= abs(v[idx]);
-        v[idx] += dir;
-        t += abs(v[idx]);
-//        return 2 * (dir * v[idx] > 0) - 1;
-        return t;
     }
 
     void ExtendState(State *state) {
@@ -296,25 +91,7 @@ public:
         int depth = state->depth + 1;
         int u = matching_order[depth];
 
-        if (num_wl_iterations > 0) {
-            std::vector<int> current_mapping(G1->GetNumVertices(), -1);
-            for (int i = 0; i < G1->GetNumVertices(); i++) {
-                current_mapping[i] = state->mapping[i];
-            }
-            WL->Reset(current_mapping);
-            WL->Refine(num_wl_iterations);
-            WL->Match(current_mapping);
-            int ub = ComputeDistance(current_mapping, false);
-            if (ub == state->lower_bound)
-                return;
-            if (ub < current_best) {
-                current_best = ub;
-                current_best_mapping = current_mapping;
-            }
-        }
-
-
-        DifferenceVector unmapped_vertex_labels(vertex_labels.size());
+        DifferenceVector unmapped_vertex_labels(vlabel_diff->size());
         for (int i = 0; i < G1->GetNumVertices(); i++) {
             if (state->mapping[i] == -1)
                 unmapped_vertex_labels.update(G1->GetVertexLabel(i), +1);
@@ -324,8 +101,8 @@ public:
                 unmapped_vertex_labels.update(G2->GetVertexLabel(i), -1);
         }
 
-        DifferenceVector unmapped_inner_edge_labels(edge_labels.size());
-        std::vector<DifferenceVector> unmapped_cross_edge_labels(G1->GetNumVertices(), DifferenceVector(edge_labels.size()));
+        DifferenceVector unmapped_inner_edge_labels(elabel_diff->size());
+        std::vector<DifferenceVector> unmapped_cross_edge_labels(G1->GetNumVertices(), DifferenceVector(elabel_diff->size()));
         for (int i = 0; i < G1->GetNumEdges(); i++) {
             auto [a, b] = G1->GetEdge(i);
             if (state->mapping[a] == -1) {
@@ -432,11 +209,11 @@ public:
                 }
 //                if (verbosity) printf("Inner is %d, Cross is %d\n",inner_edge_lower_bound, cross_edge_lower_bound);
             }
-            vertex_lower_bound = unmapped_vertex_labels.GetSetDifferenceDistance();
-            inner_edge_lower_bound = unmapped_inner_edge_labels.GetSetDifferenceDistance();
+            vertex_lower_bound = unmapped_vertex_labels.GetDifference();
+            inner_edge_lower_bound = unmapped_inner_edge_labels.GetDifference();
             cross_edge_lower_bound = 0;
             for (auto &it : unmapped_cross_edge_labels) {
-                cross_edge_lower_bound += it.GetSetDifferenceDistance();
+                cross_edge_lower_bound += it.GetDifference();
             }
             int lb = vertex_lower_bound + inner_edge_lower_bound + cross_edge_lower_bound;
 
@@ -495,13 +272,12 @@ public:
     }
 
     int AStar() {
-        num_nodes = 0; 
-        Timer timer; timer.Start();
+        num_nodes = 0;
         State* initial_state = new State(NULL);
         initial_state->cost = 0;
         initial_state->vertex_label_bound = 0;
-        initial_state->vertex_label_bound = vertex_labels.GetSetDifferenceDistance();
-        initial_state->inner_edge_label_bound = edge_labels.GetSetDifferenceDistance();
+        initial_state->vertex_label_bound = vlabel_diff->GetDifference();
+        initial_state->inner_edge_label_bound = elabel_diff->GetDifference();
         initial_state->ComputeLowerBound();
         initial_state->depth = -1;
         queue.push(initial_state);
@@ -533,13 +309,72 @@ public:
             max_qsize = std::max(max_qsize, (int64_t)queue.size());
         }
         if (threshold >= 0 and current_best > threshold) {current_best = -1;}
-        timer.Stop();
         log.AddResult("MaxQueueSize",max_qsize, RESULT_INT64);
-        log.AddResult("AStarTime", timer.GetTime(), RESULT_DOUBLE_FIXED);
         log.AddResult("AStarNodes", num_nodes, RESULT_INT64);
         log.AddResult("EditDistance", current_best, RESULT_INT);
         return current_best;
     }
+
+
+
+    int ComputeDistance(std::vector<int>& mapping, bool verbose=false) {
+        std::vector<int> inverse_mapping(G2->GetNumVertices(), -1);
+        for (int i = 0; i < G1->GetNumVertices(); i++) {
+            inverse_mapping[mapping[i]] = i;
+        }
+        return ComputeDistance(mapping, inverse_mapping, verbose);
+    }
+
+    int ComputeDistance(std::vector<int>& mapping, std::vector<int>& inverse_mapping, bool verbose = false) {
+        int cost = 0;
+        // vertex re-labeling cost
+        for (int i = 0; i < G1->GetNumVertices(); i++) {
+            int l1 = G1->GetVertexLabel(i);
+            int l2 = G2->GetVertexLabel(mapping[i]);
+            if (l1 != l2) {
+                if (verbose)
+                    printf("Vertex %d(%d)-%d(%d) re-labeling cost!\n", i, l1, mapping[i], l2);
+                cost++;
+            }
+        }
+        if (verbose)
+            printf("#Missing Vertices: %d\n",(G2->GetNumVertices() - G1->GetNumVertices()));
+        cost += (G2->GetNumVertices() - G1->GetNumVertices());
+        for (auto &[u, v] : G1->GetEdges()) {
+            int fu = mapping[u], fv = mapping[v];
+            int l1 = G1->GetEdgeLabel(u, v);
+            int l2 = G2->GetEdgeLabel(fu, fv);
+            if (l1 != l2) {
+                if (verbose)
+                    printf("Edge (%d, %d)(%d)-(%d, %d)(%d) re-labeling cost!\n",
+                           u,v,l1,fu,fv,l2);
+                cost++;
+            }
+        }
+        for (auto &[u, v] : G2->GetEdges()) {
+            int inv_u = inverse_mapping[u], inv_v = inverse_mapping[v];
+            if (inv_u == -1 || inv_v == -1) {
+                if (verbose)
+                    printf("Edge (%d, %d) in G2 is nonexistent as G1 is (%d, %d)\n",
+                           u, v, inv_u, inv_v);
+                cost++;
+            }
+            else {
+                int l = G1->GetEdgeLabel(inv_u, inv_v);
+                if (l == -1) {
+                    if (verbose)
+                        printf("Edge (%d, %d) in G2 is nonexistent as G1 is (%d, %d)\n",
+                               u, v, inv_u, inv_v);
+                    cost++;
+                }
+            }
+        }
+        if (verbose)
+            printf("Total ED Cost: %d\n",cost);
+        current_best = std::min(cost, current_best);
+        return cost;
+    }
+
 };
 
 }

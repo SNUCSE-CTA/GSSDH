@@ -1,0 +1,121 @@
+#pragma once
+#include "Branch.h"
+#include "DataStructure/LabeledGraph.h"
+
+namespace GraphLib::GraphSimilarity {
+    /**
+ * Since the DB is a collection of small graphs,
+ * a seperate class inheriting LabeledGraph is needed.
+ * @note Unlike Labeledgraph, this class does not store edges in bi-directional way.
+ */
+    class GSSEntry : public LabeledGraph {
+        std::vector<std::vector<int>> adj_matrix;
+        std::vector<std::vector<int>> incidence_list;
+        std::vector<int> degree_sequence;
+        std::vector<int> branch_ids;
+        std::vector<Branch> branches;
+
+    public:
+        // Works only for small graphs
+        inline int GetEdgeLabel(int edge_id) const {return edge_label[edge_id];}
+
+        inline int GetEdgeLabel(int u, int v) const {return adj_matrix[u][v];}
+
+        inline std::vector<int>& GetDegreeSequence() {return degree_sequence;}
+
+        void BuildDegreeSequence() {
+            degree_sequence.resize(num_vertex);
+            for (int i = 0; i < num_vertex; i++) {
+                degree_sequence[i] = adj_list[i].size();
+            }
+            std::sort(degree_sequence.begin(), degree_sequence.end(), std::greater<int>());
+        }
+
+        void LoadFromDatabase(int graph_id, std::vector<int> &vertices, std::vector<int> &vertex_labels,
+                              std::vector<std::pair<int, int>> &edges, std::vector<int> &edge_labels) {
+            id = graph_id;
+            num_vertex = vertices.size();
+            num_edge = edges.size();
+            vertex_label.resize(num_vertex);
+            adj_list.resize(num_vertex);
+            adj_matrix.resize(num_vertex);
+            incidence_list.resize(num_vertex);
+            for (int i = 0; i < num_vertex; i++) {
+                vertex_label[vertices[i]] = vertex_labels[i];
+                vertex_label_frequency[vertex_labels[i]]++;
+                adj_matrix[i].resize(num_vertex, -1);
+            }
+            edge_list = edges;
+            edge_label = edge_labels;
+            for (int i = 0; i < edge_list.size(); i++) {
+                auto &[u, v] = edge_list[i];
+                adj_matrix[u][v] = edge_label[i];
+                adj_matrix[v][u] = edge_label[i];
+                adj_list[u].push_back(v);
+                adj_list[v].push_back(u);
+                incidence_list[u].push_back(v);
+                incidence_list[v].push_back(u);
+                edge_label_frequency[edge_label[i]]++;
+            }
+            BuildDegreeSequence();
+        };
+
+        void CombineGraph(GSSEntry *g1, GSSEntry *g2) {
+            num_vertex = g1->GetNumVertices() + g2->GetNumVertices();
+            adj_matrix.resize(num_vertex, std::vector<int>(num_vertex, -1));
+            num_edge = g1->GetNumEdges() + g2->GetNumEdges();
+            adj_list.resize(num_vertex);
+            vertex_label.resize(num_vertex);
+            edge_label.resize(num_edge);
+            for (int i = 0; i < g1->GetNumVertices(); i++) vertex_label[i] = g1->GetVertexLabel(i);
+            for (int i = 0; i < g2->GetNumVertices(); i++) vertex_label[i + g1->GetNumVertices()] = g2->GetVertexLabel(i);
+            for (int i = 0; i < g1->GetNumEdges(); i++) {
+                edge_label[i] = g1->GetEdgeLabel(i);
+                auto [v1, v2] = g1->GetEdge(i);
+                adj_list[v1].push_back(v2);
+                adj_list[v2].push_back(v1);
+                adj_matrix[v1][v2] = adj_matrix[v2][v1] = edge_label[i];
+            }
+            for (int i = 0; i < g2->GetNumEdges(); i++) {
+                edge_label[i + g1->GetNumEdges()] = g2->GetEdgeLabel(i);
+                auto [v1, v2] = g2->GetEdge(i);
+                v1 += g1->GetNumVertices();
+                v2 += g1->GetNumVertices();
+                adj_list[v1].push_back(v2);
+                adj_list[v2].push_back(v1);
+                adj_matrix[v1][v2] = adj_matrix[v2][v1] = edge_label[i + g1->GetNumEdges()];
+            }
+        }
+
+        void BuildBranches(std::map<Branch, int>& seen_branch_ids, std::vector<Branch>& seen_branch_structures) {
+            branches.resize(num_vertex);
+            branch_ids.resize(num_vertex);
+            for (int i = 0; i < num_vertex; i++) {
+                branches[i].vertex_label = vertex_label[i];
+                branches[i].edge_labels.resize(adj_list[i].size());
+                for (int j = 0; j < adj_list[i].size(); j++) {
+                    branches[i].edge_labels[j] = adj_matrix[i][adj_list[i][j]];
+                }
+                std::sort(branches[i].edge_labels.begin(), branches[i].edge_labels.end());
+                auto it = seen_branch_ids.find(branches[i]);
+                if (it == seen_branch_ids.end()) {
+//                    fprintf(stderr, "Insert new branch %lu\n", seen_branch_structures.size());
+//                    fprintf(stderr, " Branch %lu: %d | ", seen_branch_structures.size(), branches[i].vertex_label);
+//                    for (auto el : branches[i].edge_labels)
+//                        fprintf(stderr, "%d ", el);
+//                    fprintf(stderr, "\n");
+                    branch_ids[i] = seen_branch_structures.size();
+                    seen_branch_ids[branches[i]] = seen_branch_structures.size();
+                    seen_branch_structures.push_back(branches[i]);
+                }
+                else {
+                    branch_ids[i] = it->second;
+                }
+            }
+        }
+
+        const int GetBranchID(int v) const {return branch_ids[v];}
+        std::vector<int>& GetBranchIDs() {return branch_ids;}
+    };
+
+}
