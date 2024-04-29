@@ -2,7 +2,6 @@ from utility import *
 import pandas as pd 
 import ast 
 
-AIDS_AStarLSa_result = pd.read_csv("./reference/GED-AIDS-AStar-LSa.csv")
 def run(args):
     binary = "GraphSimilaritySearch"
     data, query, tau = args
