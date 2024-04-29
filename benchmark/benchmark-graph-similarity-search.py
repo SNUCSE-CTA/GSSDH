@@ -47,3 +47,4 @@ if __name__ == '__main__':
         results.append(result)
     agg_result = (pd.DataFrame(results)).sort_values(by=['tau'])
     agg_result.to_csv(f"results/GraphSimilaritySearch/{currentdate}-{gitver}{exp_ident}.csv", index=False)
+    agg_result.to_csv(f"results/GraphSimilaritySearch/last-results.csv", index=False)
