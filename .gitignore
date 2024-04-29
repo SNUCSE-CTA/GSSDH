@@ -2,6 +2,7 @@ build/
 cmake-build-*/
 graphs/
 dataset/
+data/
 benchmark/results/
 .vscode/
 .DS_Store
