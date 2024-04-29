@@ -26,7 +26,10 @@ namespace GraphLib {
 
         std::unordered_map<int, int>& GetVertexLabelFrequency() {return vertex_label_frequency;}
         std::unordered_map<int, int>& GetEdgeLabelFrequency() {return edge_label_frequency;}
-
+        int GetVertexLabelFrequency(int l) {return vertex_label_frequency[l];}
+        int GetEdgeLabelFrequency(int l) {return edge_label_frequency[l];}
+        bool HaveVertexLabel(int l) {return vertex_label_frequency.find(l) != vertex_label_frequency.end();}
+        bool HaveEdgeLabel(int l) {return edge_label_frequency.find(l) != edge_label_frequency.end();}
         void CombineGraph(LabeledGraph *g1, LabeledGraph *g2) {
             num_vertex = g1->GetNumVertices() + g2->GetNumVertices();
             num_edge = g1->GetNumEdges() + g2->GetNumEdges();

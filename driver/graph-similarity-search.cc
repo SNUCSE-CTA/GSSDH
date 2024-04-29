@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
     DB.LoadGraphDatabase(dataset_path, -1);
 //    auto data = DB.GetData();
     DB.BuildBranches();
-    DB.LoadGraphDatabase(query_path, 7);
+    DB.LoadGraphDatabase(query_path, tau);
     DB.GetLog().PrintResults();
     return 0;
 }

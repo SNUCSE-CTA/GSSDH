@@ -10,6 +10,7 @@
 #include "Base/Hungarian.h"
 #include "GraphSimilarity/GSSEntry.h"
 #include "GraphSimilarity/EditDistance.h"
+#include "GraphSimilarity/PartitionFilter.h"
 
 namespace GraphLib::GraphSimilarity {
 
@@ -91,6 +92,7 @@ namespace GraphLib::GraphSimilarity {
         }
 
         int BranchBound(int data_idx);
+        int PartitionBound(int data_idx);
     };
 
     void GraphSimilaritySearch::LoadGraphDatabase(std::string &filename, int opt) {
@@ -180,7 +182,7 @@ namespace GraphLib::GraphSimilarity {
             vlabel_diff.reset(); elabel_diff.reset();
             Timer timer; timer.Start();
             Timer verification_timer;
-            int naive_count_bound, degree_seq_bound, label_set_bound, branch_bound;
+            int naive_count_bound = -1, degree_seq_bound = -1, label_set_bound = -1, branch_bound = -1, partition_bound = -1, ed;
             naive_count_bound = NaiveCountBound(data_idx);
             if (naive_count_bound > tau) goto filtered;
             degree_seq_bound  = DegreeSequenceBound(data_idx);
@@ -189,6 +191,19 @@ namespace GraphLib::GraphSimilarity {
             if (label_set_bound > tau) goto filtered;
             branch_bound      = BranchBound(data_idx);
             if (branch_bound > tau) goto filtered;
+//            partition_bound = PartitionBound(data_idx);
+//            if (query->GetId() == 691405 and data->GetId() == 691409) {
+//                partition_bound = PartitionBound(data_idx);
+//                fprintf(stderr, "Naive Count Bound: %d\n", naive_count_bound);
+//                fprintf(stderr, "Degree Sequence Bound: %d\n", degree_seq_bound);
+//                fprintf(stderr, "Label Set Bound: %d\n", label_set_bound);
+//                fprintf(stderr, "Branch Bound: %d\n", branch_bound);
+//                fprintf(stderr, "Partition Bound: %d\n", partition_bound);
+//                GEDSolver.Initialize(query, data, 1000, &vlabel_diff, &elabel_diff);
+//                fprintf(stderr, "True Edit Distance: %d\n", GEDSolver.AStar());
+//                exit(0);
+//            }
+//            if (partition_bound > tau) goto filtered;
             timer.Stop(); total_filtering_time+=timer.GetTime();
 
             verify:
@@ -197,8 +212,16 @@ namespace GraphLib::GraphSimilarity {
             GEDSolver.Initialize(query, data, this->tau, &vlabel_diff, &elabel_diff);
             if (GEDSolver.AStar() != -1) {
                 num_answer++;
-                ged_logs.push_back(GEDSolver.GetLog());
+//                fprintf(stderr, "Match %d-%d: \n", query->GetId(), data->GetId());
+//                fprintf(stderr, "  Naive Count Bound: %d\n", naive_count_bound);
+//                fprintf(stderr, "  Degree Sequence Bound: %d\n", degree_seq_bound);
+//                fprintf(stderr, "  Label Set Bound: %d\n", label_set_bound);
+//                fprintf(stderr, "  Branch Bound: %d\n", branch_bound);
+//                fprintf(stderr, "  Partition Bound: %d\n", partition_bound);
+//                fprintf(stderr, "  True Edit Distance: %d\n", GEDSolver.GetCurrentBestGED());
+//                exit(0);
             }
+            ged_logs.push_back(GEDSolver.GetLog());
             verification_timer.Stop(); total_verifying_time+=verification_timer.GetTime();
             continue;
 
@@ -271,5 +294,11 @@ namespace GraphLib::GraphSimilarity {
 //        }
         int cost = (hungarian.GetTotalCost() + 1) / 2;
         return cost;
+    }
+
+    int GraphSimilaritySearch::PartitionBound(int data_idx) {
+        GSSEntry *data = data_graphs[data_idx];
+        PartitionFilter partition_filter(query, data);
+        return partition_filter.GetPartitionBound();
     }
 }
