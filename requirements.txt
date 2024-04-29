@@ -1,0 +1,5 @@
+GitPython
+psutil
+tqdm
+pandas
+numpy
