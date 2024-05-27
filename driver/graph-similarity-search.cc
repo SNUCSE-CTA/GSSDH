@@ -15,11 +15,10 @@ std::vector<std::string> log_entries = {
         "Ans", "NumCandidates", "TotalFilteringTime", "TotalAStarTime", "TotalSearchSpace"
 };
 
-// 24576, 1
 int main(int argc, char *argv[]) {
     std::string dataset = "AIDS";
-    std::string dataset_path = data_root + "AIDS.txt";
-    std::string query_path = data_root + "AIDS_query100.txt";
+    std::string dataset_path = data_root + "AIDS.database";
+    std::string query_path = data_root + "AIDS.100query";
 
     for (int i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') {

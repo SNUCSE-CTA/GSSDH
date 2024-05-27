@@ -4,6 +4,7 @@ graphs/
 dataset/
 data/
 benchmark/results/
+web/
 .vscode/
 .DS_Store
 .idea/

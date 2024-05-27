@@ -191,35 +191,15 @@ namespace GraphLib::GraphSimilarity {
             if (label_set_bound > tau) goto filtered;
             branch_bound      = BranchBound(data_idx);
             if (branch_bound > tau) goto filtered;
-//            partition_bound = PartitionBound(data_idx);
-//            if (query->GetId() == 691405 and data->GetId() == 691409) {
-//                partition_bound = PartitionBound(data_idx);
-//                fprintf(stderr, "Naive Count Bound: %d\n", naive_count_bound);
-//                fprintf(stderr, "Degree Sequence Bound: %d\n", degree_seq_bound);
-//                fprintf(stderr, "Label Set Bound: %d\n", label_set_bound);
-//                fprintf(stderr, "Branch Bound: %d\n", branch_bound);
-//                fprintf(stderr, "Partition Bound: %d\n", partition_bound);
-//                GEDSolver.Initialize(query, data, 1000, &vlabel_diff, &elabel_diff);
-//                fprintf(stderr, "True Edit Distance: %d\n", GEDSolver.AStar());
-//                exit(0);
-//            }
-//            if (partition_bound > tau) goto filtered;
             timer.Stop(); total_filtering_time+=timer.GetTime();
 
             verify:
             num_candidates++;
             verification_timer.Start();
+//            fprintf(stdout, "CandPair %d %d\n", query->GetId(), data->GetId());
             GEDSolver.Initialize(query, data, this->tau, &vlabel_diff, &elabel_diff);
             if (GEDSolver.AStar() != -1) {
                 num_answer++;
-//                fprintf(stderr, "Match %d-%d: \n", query->GetId(), data->GetId());
-//                fprintf(stderr, "  Naive Count Bound: %d\n", naive_count_bound);
-//                fprintf(stderr, "  Degree Sequence Bound: %d\n", degree_seq_bound);
-//                fprintf(stderr, "  Label Set Bound: %d\n", label_set_bound);
-//                fprintf(stderr, "  Branch Bound: %d\n", branch_bound);
-//                fprintf(stderr, "  Partition Bound: %d\n", partition_bound);
-//                fprintf(stderr, "  True Edit Distance: %d\n", GEDSolver.GetCurrentBestGED());
-//                exit(0);
             }
             ged_logs.push_back(GEDSolver.GetLog());
             verification_timer.Stop(); total_verifying_time+=verification_timer.GetTime();
@@ -237,22 +217,12 @@ namespace GraphLib::GraphSimilarity {
     }
 
     int GraphSimilaritySearch::BranchBound(int data_idx) {
-//        fprintf(stderr, "Called Branchbound (data = %d)\n", data_idx);
         GSSEntry *data = data_graphs[data_idx];
         query->BuildBranches(seen_branch_ids, seen_branch_structures);
-//        fprintf(stderr, "Query has %d branches (data = %d)\n", (int)query->GetBranchIDs().size(), (int)data->GetBranchIDs().size());
         int max_num_vertices = std::max(data->GetNumVertices(), query->GetNumVertices());
         std::vector<std::vector<int>> cost_matrix(max_num_vertices, std::vector<int>(max_num_vertices, 0));
         for (int i = 0; i < query->GetNumVertices(); i++) {
             int query_branch_id = query->GetBranchID(i);
-//            if (data_idx == 17657) {
-//                Branch &b = seen_branch_structures[query_branch_id];
-//                fprintf(stderr, "[QueryBranch = %d] VL = %d | ", query_branch_id, b.vertex_label);
-//                for (int el : b.edge_labels) {
-//                    fprintf(stderr, "%d ", el);
-//                }
-//                fprintf(stderr, "\n");
-//            }
             for (int j = 0; j < data->GetNumVertices(); j++) {
                 int data_branch_id = data->GetBranchID(j);
                 if (query_branch_id < num_indexed_branches and data_branch_id < num_indexed_branches) {
@@ -262,14 +232,6 @@ namespace GraphLib::GraphSimilarity {
                     cost_matrix[i][j] = BranchEditDistance(seen_branch_structures[query_branch_id],
                                                            seen_branch_structures[data_branch_id]);
                 }
-//                if (data_idx == 17657) {
-//                    Branch &b = seen_branch_structures[data_branch_id];
-//                    fprintf(stderr, "  [Databranch = %d] VL = %d | ", data_branch_id, b.vertex_label);
-//                    for (int el : b.edge_labels) {
-//                        fprintf(stderr, "%d ", el);
-//                    }
-//                    fprintf(stderr, " Cost = %d\n", cost_matrix[i][j]);
-//                }
             }
             if (data->GetNumVertices() < max_num_vertices) {
                 int null_distance = BranchEditDistanceFromNull(seen_branch_structures[query_branch_id]);
@@ -289,9 +251,6 @@ namespace GraphLib::GraphSimilarity {
         }
         Hungarian hungarian(cost_matrix);
         hungarian.Solve();
-//        if (data_idx == 17657) {
-//            hungarian.Print();
-//        }
         int cost = (hungarian.GetTotalCost() + 1) / 2;
         return cost;
     }

@@ -5,7 +5,7 @@ import ast
 def run(args):
     binary = "GraphSimilaritySearch"
     data, query, tau = args
-    command = f"../build/{binary} -d {data} -q {query} -t {tau}"
+    command = f"../build/{binary} -d {data} -q {query} -t {tau} > ./results/run_{tau}.out"
     if platform.system() == "Darwin":
         cmd = f"(/usr/bin/time -l {command}) 2>&1"
     else:
@@ -37,8 +37,8 @@ if __name__ == '__main__':
     os.makedirs("results/GraphSimilaritySearch", exist_ok=True)
     gitver = get_current_repository_ver()[-8:]
     currentdate = get_experiment_date().replace("-", "")
-    data_path = "../data/GraphSimilaritySearch/AIDS.txt"
-    query_path = "../data/GraphSimilaritySearch/AIDS_query100.txt"
+    data_path = "../data/GraphSimilaritySearch/AIDS.database"
+    query_path = "../data/GraphSimilaritySearch/AIDS.100query"
     workloads = [(data_path, query_path, tau) for tau in [7, 6, 5, 4, 3, 2, 1, 0]]
     P = multiprocessing.Pool(processes=3)
     results = []
