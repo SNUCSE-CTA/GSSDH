@@ -12,11 +12,11 @@
  */
 struct DifferenceVector {
     std::vector<int> value;
-    int pos = 0, neg = 0;
+    int pos = 0, neg = 0, tot = 0, totpos = 0, totneg = 0;
     DifferenceVector(int sz = 0) {value.resize(sz, 0);}
 
-    void init(int sz) {value.resize(sz, 0); pos = neg = 0;}
-    void reset() { std::fill(value.begin(), value.end(), 0); pos = neg = 0;}
+    void init(int sz) {value.resize(sz, 0); pos = neg = tot = totpos = totneg = 0;}
+    void reset() { std::fill(value.begin(), value.end(), 0); pos = neg = tot = totpos = totneg = 0;}
 
     unsigned long size() const {return value.size();}
 
@@ -43,10 +43,32 @@ struct DifferenceVector {
         else if (value[idx] > 0) {
             pos += (val > 0 ? 1 : -1);
         }
+        (val > 0 ? totpos : totneg)++;
+        tot++;
         value[idx] += val;
     }
 
     int GetDifference() {
         return std::max(pos, neg);
+    }
+
+    int GetTotal() {
+        return tot;
+    }
+
+    int GetTotalPos() {
+        return totpos;
+    }
+
+    int GetTotalNeg() {
+        return totneg;
+    }
+
+    int GetUnion() {
+        return totpos + totneg - std::max(pos, neg);
+    }
+
+    int GetIntersection() {
+        return std::max(totpos, totneg) - std::max(pos, neg);
     }
 };
