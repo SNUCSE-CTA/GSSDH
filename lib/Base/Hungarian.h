@@ -1,5 +1,6 @@
 #pragma once
 #include "Base.h"
+#include "PrettyPrint.h"
 #include "Timer.h"
 
 /**
@@ -30,15 +31,17 @@ public:
         beta = std::vector<int>(N, 0);
         theta = 0;
     }
+
     Hungarian(int N_) {
         this->N = N_;
         InitializeSolver();
         cost_matrix = std::vector<std::vector<int>>(N, std::vector<int>(N, 0));
     }
-    Hungarian(std::vector<std::vector<int>> cost_matrix_) {
+
+    Hungarian(const std::vector<std::vector<int>>& cost_matrix_) {
         this->N = cost_matrix_.size();
-        InitializeSolver();
         cost_matrix = cost_matrix_;
+        InitializeSolver();
     }
 
     void FillCostMatrix(std::vector<std::vector<int>>& cost_matrix_) {
@@ -121,15 +124,13 @@ public:
     void Print() {
         fprintf(stderr, "Invoked Hungarian::Print() N = %d\n", N);
         for (int i = 0; i < N; i++) {
-            for (int j = 0; j < N; j++) {
-                fprintf(stderr, "%d ", cost_matrix[i][j]);
-            }
-            fprintf(stderr, "\n");
+            std::cerr << cost_matrix[i] << '\n';
         }
-        fprintf(stderr, "Assignment: ");
+        fprintf(stderr, "Assignment:\n");
         for (int i = 0; i < N; i++) {
-            fprintf(stderr, "%d(cost=%d)\n", assignment[i], cost_matrix[i][assignment[i]]);
+            fprintf(stderr, "  %d(cost=%d)\n", assignment[i], cost_matrix[i][assignment[i]]);
         }
+        fprintf(stderr, "TotalCost = %d\n", total_cost);
     }
 
     std::vector<int>& GetAssignment() {
@@ -138,5 +139,9 @@ public:
 
     int GetTotalCost() {
         return total_cost;
+    }
+
+    int AssignedWeight(int i) {
+        return cost_matrix[i][assignment[i]];
     }
 };

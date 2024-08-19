@@ -12,16 +12,103 @@ namespace GraphLib::GraphSimilarity {
 bool verbosity = true;
 static int32_t LOG_EVERY = 50000;
 
-class EditDistanceSolver {
+class GraphEditDistanceSolver {
+protected:
     GSSEntry *G1, *G2;
     int threshold = -1, current_best = 1e9;
     long long num_nodes = 0;
     std::vector<int> current_best_mapping;
+    std::vector<std::vector<int>> branch_distances, branch_scores;
     std::priority_queue<State*, std::vector<State*>, StateComparator> queue;
-    DifferenceVector *vlabel_diff, *elabel_diff;
-    std::vector<int> matching_order;
+    DifferenceVector *vlabel_diff = new DifferenceVector(100), *elabel_diff = new DifferenceVector(20);
+    std::vector<int> matching_order, inv_matching_order;
     ResultLogger log;
 public:
+
+    void InitializeSolver(GSSEntry *G1_, GSSEntry *G2_, int threshold_ = -1) {
+        log.clear();
+        current_best = 1e9;
+        // ensure V(G1) <= V(G2)
+        if (G1_->GetNumVertices() > G2_->GetNumVertices()) {
+            this->G1 = G2_;
+            this->G2 = G1_;
+        }
+        else {
+            this->G1 = G1_;
+            this->G2 = G2_;
+        }
+        this->threshold = threshold_;
+    }
+    /*
+     * Function for filtering
+     * used for GED verification tasks
+     */
+    int NaiveCountBound() {
+        int bound = abs(G1->GetNumVertices() - G2->GetNumVertices()) + abs(G1->GetNumEdges() - G2->GetNumEdges());
+        return bound;
+    }
+
+    int LabelSetDifferenceBound() {
+        vlabel_diff->reset();
+        elabel_diff->reset();
+        for (auto &[l, t] : G2->GetVertexLabelFrequency())
+            vlabel_diff->update(l, t);
+        for (auto &[l, t] : G1->GetVertexLabelFrequency())
+            vlabel_diff->update(l, -t);
+        for (auto &[l, t] : G1->GetEdgeLabelFrequency())
+            elabel_diff->update(l, t);
+        for (auto &[l, t] : G2->GetEdgeLabelFrequency())
+            elabel_diff->update(l, -t);
+        int cost = 0;
+        cost = vlabel_diff->GetDifference() + elabel_diff->GetDifference();
+        return cost;
+    }
+
+    int DegreeSequenceBound() {
+        int pos = 0, neg = 0;
+        auto &g1_deg = G1->GetDegreeSequence();
+        auto &g2_deg = G2->GetDegreeSequence();
+        for (int i = 0; i < G1->GetNumVertices(); i++) {
+            int a = (i >= G2->GetNumVertices()) ? 0 : g1_deg[i];
+            int b = g2_deg[i];
+            if (a > b) pos += (a - b);
+            if (a < b) neg += (b - a);
+        }
+        return (pos + 1) / 2 + (neg + 1) / 2;
+    }
+
+    int BranchBound() {
+        branch_distances.clear();
+        branch_distances.resize(G2->GetNumVertices(), std::vector<int>(G2->GetNumVertices(), 0));
+        for (int i = 0; i < G1->GetNumVertices(); i++) {
+            for (int j = 0; j < G2->GetNumVertices(); j++) {
+                branch_distances[i][j] = BranchEditDistance(G1->GetBranch(i), G2->GetBranch(j));
+            }
+        }
+        for (int j = 0; j < G2->GetNumVertices(); j++) {
+            for (int i = G1->GetNumVertices(); i < G2->GetNumVertices(); i++) {
+                branch_distances[i][j] = BranchEditDistanceFromNull(G2->GetBranch(j));
+            }
+        }
+
+        Hungarian hungarian(branch_distances);
+        hungarian.Solve();
+        int cost = (hungarian.GetTotalCost() + 1) / 2;
+        return cost;
+    }
+
+    bool GEDVerificiationFiltering() {
+        if (NaiveCountBound() > threshold) return false;
+        if (LabelSetDifferenceBound() > threshold) return false;
+        if (DegreeSequenceBound() > threshold) return false;
+        if (BranchBound() > threshold) return false;
+        return true;
+    }
+
+    /*
+     * Functions for GED Computation / Verification
+     */
+
 
     int GetCurrentBestGED() const {return current_best;}
     ResultLogger GetLog() {return log;}
@@ -57,26 +144,40 @@ public:
                 matching_order.push_back(i);
             }
         }
+        inv_matching_order.resize(G1->GetNumVertices(), -1);
+        for (int i = 0; i < G1->GetNumVertices(); i++) {
+            inv_matching_order[matching_order[i]] = i;
+        }
     }
 
-
-    void Initialize(GSSEntry *G1_, GSSEntry *G2_, int threshold_ = -1,
-                    DifferenceVector *vlabel_diff_ = nullptr, DifferenceVector *elabel_diff_ = nullptr) {
-        log.clear();
-        current_best = 1e9;
-        // V(G1) <= V(G2)
-        if (G1_->GetNumVertices() > G2_->GetNumVertices()) {
-            this->G1 = G2_;
-            this->G2 = G1_;
+    int GetChildEditCost(State *parent_state, int u, int v) {
+        int cost = parent_state->cost;
+        int u_label = G1->GetVertexLabel(u), v_label = G2->GetVertexLabel(v);
+        // update editorial cost
+        if (u_label != v_label) {
+            cost++;
         }
-        else {
-            this->G1 = G1_;
-            this->G2 = G2_;
+        int num_u_edges = 0;
+        for (int u_nbr : G1->GetNeighbors(u)) {
+            if (parent_state->mapping[u_nbr] != -1)
+                num_u_edges++;
         }
-        vlabel_diff = vlabel_diff_;
-        elabel_diff = elabel_diff_;
+        int ec = num_u_edges;
+        for (int vprime : G2->GetNeighbors(v)) {
+            int uprime = parent_state->inverse_mapping[vprime];
+            if (uprime == -1) continue;
+            ec++;
+            int l1 = G1->GetEdgeLabel(u, uprime);
+            int l2 = G2->GetEdgeLabel(v, vprime);
+            if (l1 == -1) continue;
+            if (l1 == l2) ec -= 2;
+            else ec--;
+        }
+        cost += ec;
+        return cost;
+    }
 
-        this->threshold = threshold_;
+    void PrepareGED() {
         NumG1Vertices = G1->GetNumVertices();
         NumG2Vertices = G2->GetNumVertices();
         matching_order.clear();
@@ -84,237 +185,73 @@ public:
         current_best_mapping.clear();
         current_best_mapping.resize(G1->GetNumVertices(), -1);
         num_nodes = 0;
+        current_best = 1e9;
     }
 
-    void ExtendState(State *state) {
-        if (state->cost >= current_best) return;
-        int depth = state->depth + 1;
-        int u = matching_order[depth];
+    virtual int GED(){return 0;};
 
-        DifferenceVector unmapped_vertex_labels(vlabel_diff->size());
-        for (int i = 0; i < G1->GetNumVertices(); i++) {
-            if (state->mapping[i] == -1)
-                unmapped_vertex_labels.update(G1->GetVertexLabel(i), +1);
+    void ComputeBranchDistanceMatrix(State *state,
+                                     std::vector<std::vector<int>>& branch_distance_matrix,
+                                     std::vector<int>& rem_left,
+                                     std::vector<int>& rem_right) {
+        DifferenceVector diff; diff.init(20);
+        for (int u = 0; u < G1->GetNumVertices(); u++) {
+            if (state->mapping[u] == -1)
+                rem_left.emplace_back(u);
         }
-        for (int i = 0; i < G2->GetNumVertices(); i++) {
-            if (state->inverse_mapping[i] == -1)
-                unmapped_vertex_labels.update(G2->GetVertexLabel(i), -1);
-        }
-
-        DifferenceVector unmapped_inner_edge_labels(elabel_diff->size());
-        std::vector<DifferenceVector> unmapped_cross_edge_labels(G1->GetNumVertices(), DifferenceVector(elabel_diff->size()));
-        for (int i = 0; i < G1->GetNumEdges(); i++) {
-            auto [a, b] = G1->GetEdge(i);
-            if (state->mapping[a] == -1) {
-                if (state->mapping[b] == -1)
-                    unmapped_inner_edge_labels.update(G1->GetEdgeLabel(i), +1);
-                else
-                    unmapped_cross_edge_labels[b].update(G1->GetEdgeLabel(i), +1);
-            }
-            else {
-                if (state->mapping[b] == -1)
-                    unmapped_cross_edge_labels[a].update(G1->GetEdgeLabel(i), +1);
-            }
-        }
-        for (int i = 0; i < G2->GetNumEdges(); i++) {
-            auto [a, b] = G2->GetEdge(i);
-            int fa = state->inverse_mapping[a], fb = state->inverse_mapping[b];
-            if (state->inverse_mapping[a] == -1) {
-                if (state->inverse_mapping[b] == -1)
-                    unmapped_inner_edge_labels.update(G2->GetEdgeLabel(i), -1);
-                else
-                    unmapped_cross_edge_labels[fb].update(G2->GetEdgeLabel(i), -1);
-            }
-            else {
-                if (state->inverse_mapping[b] == -1)
-                    unmapped_cross_edge_labels[fa].update(G2->GetEdgeLabel(i), -1);
-            }
-        }
-
-//        printf("Unmapped Vertex Label Distribution: ");
-//        for (int i = 0; i < vertex_labels.size(); i++) {
-//            printf("%d ", unmapped_vertex_labels[i]);
-//        }
-//        printf("\n");
-
-        int num_u_edges = 0;
-        for (int u_nbr : G1->GetNeighbors(u)) {
-            if (state->mapping[u_nbr] != -1)
-                num_u_edges++;
-        }
-
         for (int v = 0; v < G2->GetNumVertices(); v++) {
-            if (state->inverse_mapping[v] != -1) continue;
+            if (state->inverse_mapping[v] == -1)
+                rem_right.emplace_back(v);
+        }
 
-            int child_cost = state->cost;
-            int vertex_lower_bound = state->vertex_label_bound;
-            int inner_edge_lower_bound = state->inner_edge_label_bound;
-            int cross_edge_lower_bound = state->cross_edge_label_bound;
-
-            int u_label = G1->GetVertexLabel(u), v_label = G2->GetVertexLabel(v);
-            // update editorial cost
-            if (u_label != v_label) {
-                child_cost++;
-            }
-            int ec = num_u_edges;
-            for (int vprime : G2->GetNeighbors(v)) {
-                int uprime = state->inverse_mapping[vprime];
-                if (uprime == -1) continue;
-                ec++;
-                int l1 = G1->GetEdgeLabel(u, uprime);
-                int l2 = G2->GetEdgeLabel(v, vprime);
-                if (l1 == -1) continue;
-                if (l1 == l2) ec -= 2;
-                else ec--;
-            }
-            child_cost += ec;
-
-            // Update Vertex-label-based Lower Bound
-            unmapped_vertex_labels.update(u_label, -1);
-            unmapped_vertex_labels.update(v_label, +1);
-//            vertex_lower_bound += flip(unmapped_vertex_labels, u_label, -1);
-//            vertex_lower_bound += flip(unmapped_vertex_labels, v_label, +1);
-
-            // Update Inner-edge-label-based Lower Bound
-            for (int uprime : G1->GetNeighbors(u)) {
-                int el = G1->GetEdgeLabel(u, uprime);
-//                if (verbosity) printf("Consider %d (label = %d)\n",uprime, el);
-                if (state->mapping[uprime] == -1) {
-//                    inner_edge_lower_bound += flip(unmapped_inner_edge_labels, el, -1);
-//                    cross_edge_lower_bound += flip(unmapped_cross_edge_labels[u], el, +1);
-                    unmapped_inner_edge_labels.update(el, -1);
-                    unmapped_cross_edge_labels[u].update(el, +1);
+        for (int v_idx = 0; v_idx < rem_right.size(); v_idx++) {
+            int v = rem_right[v_idx];
+            auto &v_nbrs = G2->GetNeighbors(v);
+            int u_idx = 0;
+            for (u_idx = 0; u_idx < rem_left.size(); u_idx++) {
+                int u = rem_left[u_idx];
+                auto &u_nbrs = G1->GetNeighbors(u);
+                diff.reset();
+                if (G1->GetVertexLabel(u) != G2->GetVertexLabel(v)) {
+                    branch_distance_matrix[u_idx][v_idx] += 2;
                 }
-                else {
-                    // uPrime is matched: anchored on uprime ->removed
-                    unmapped_cross_edge_labels[uprime].update(el, -1);
-//                    cross_edge_lower_bound += flip(unmapped_cross_edge_labels[uprime], el, -1);
+                for (int l = 0; l < u_nbrs.size(); l++) {
+                    int u_nbr = u_nbrs[l]; int u_el = G1->GetEdgeLabel(u, u_nbr);
+                    if (state->mapping[u_nbr] == -1) {
+                        diff.update(u_el, 1);
+                    }
+                    else {
+                        int v_mapping_el = G2->GetEdgeLabel(v, state->mapping[u_nbr]);
+                        if (v_mapping_el != u_el) {
+                            branch_distance_matrix[u_idx][v_idx] += 2;
+                        }
+                    }
                 }
-//                if (verbosity) printf("Inner is %d, Cross is %d\n",inner_edge_lower_bound, cross_edge_lower_bound);
+                for (int r = 0; r < v_nbrs.size(); r++) {
+                    int v_nbr = v_nbrs[r]; int v_el = G2->GetEdgeLabel(v, v_nbr);
+                    if (state->inverse_mapping[v_nbr] == -1) {
+                        diff.update(v_el, -1);
+                    }
+                    else {
+                        int u_mapping_el = G1->GetEdgeLabel(u, state->inverse_mapping[v_nbr]);
+                        if (u_mapping_el == -1) {
+                            branch_distance_matrix[u_idx][v_idx] += 2;
+                        }
+                    }
+                }
+                int inner_distance = diff.GetDifference();
+                branch_distance_matrix[u_idx][v_idx] += inner_distance;
             }
-            for (int vprime : G2->GetNeighbors(v)) {
-                int el = G2->GetEdgeLabel(v, vprime);
-                int fvprime = state->inverse_mapping[vprime];
-//                if (verbosity) printf("Consider (%d-%d) G2 (label = %d)\n",v,vprime,el);
-                if (fvprime == -1) {
-                    unmapped_inner_edge_labels.update(el, +1);
-                    unmapped_cross_edge_labels[u].update(el, -1);
-//                    inner_edge_lower_bound += flip(unmapped_inner_edge_labels, el, +1);
-//                    cross_edge_lower_bound += flip(unmapped_cross_edge_labels[u], el, -1);
-                }
-                else {
-                    // uPrime is matched: anchored on uprime ->removed
-                    unmapped_cross_edge_labels[fvprime].update(el, +1);
-//                    cross_edge_lower_bound += flip(unmapped_cross_edge_labels[fvprime], el, +1);
-                }
-//                if (verbosity) printf("Inner is %d, Cross is %d\n",inner_edge_lower_bound, cross_edge_lower_bound);
-            }
-            vertex_lower_bound = unmapped_vertex_labels.GetDifference();
-            inner_edge_lower_bound = unmapped_inner_edge_labels.GetDifference();
-            cross_edge_lower_bound = 0;
-            for (auto &it : unmapped_cross_edge_labels) {
-                cross_edge_lower_bound += it.GetDifference();
-            }
-            int lb = vertex_lower_bound + inner_edge_lower_bound + cross_edge_lower_bound;
-
-            // Revert everything
-            unmapped_vertex_labels.update(u_label, +1);
-            unmapped_vertex_labels.update(v_label, -1);
-            for (int uprime : G1->GetNeighbors(u)) {
-                int el = G1->GetEdgeLabel(u, uprime);
-                if (state->mapping[uprime] == -1) {
-                    unmapped_inner_edge_labels.update(el, +1);
-                    unmapped_cross_edge_labels[u].update(el, -1);
-//                    flip(unmapped_inner_edge_labels, el, +1);
-//                    flip(unmapped_cross_edge_labels[u], el, -1);
-                }
-                else {
-                    unmapped_cross_edge_labels[uprime].update(el, +1);
-//                    flip(unmapped_cross_edge_labels[uprime], el, +1);
+            int from_null = BranchEditDistanceFromNull(G2->GetBranch(v));
+            for (int v_nbr : G2->GetNeighbors(v)) {
+                if (state->inverse_mapping[v_nbr] != -1) {
+                    from_null++;
                 }
             }
-            for (int vprime : G2->GetNeighbors(v)) {
-                int el = G2->GetEdgeLabel(v, vprime);
-                int fvprime = state->inverse_mapping[vprime];
-                if (fvprime == -1) {
-                    unmapped_inner_edge_labels.update(el, -1);
-                    unmapped_cross_edge_labels[u].update(el, +1);
-                }
-                else {
-                    // uPrime is matched: anchored on uprime ->removed
-                    unmapped_cross_edge_labels[fvprime].update(el, -1);
-                }
-            }
-            // If decided to proceed with this...
-            if (child_cost + lb >= current_best) continue;
-            if (threshold > 0) {
-                if (child_cost + lb > threshold) continue;
-            }
-            State* child_state = new State(state);
-//            printf("State [%p] Check Depth %d [Parent %p]! matching (%d(%d), %d(%d)) gives lb = %d, cost = %d (curbest = %d)\n", child_state, depth, state, u, u_label, v, v_label, lb+child_cost, child_cost, current_best);
-//            printf("  LB Breakdown: VLabel %d, InnerEdge %d, CrossEdge %d\n\n", vertex_lower_bound, inner_edge_lower_bound, cross_edge_lower_bound);
-//            if (depth == 2) exit(1);
-            child_state->cost = child_cost;
-            child_state->vertex_label_bound = vertex_lower_bound;
-            child_state->inner_edge_label_bound = inner_edge_lower_bound;
-            child_state->cross_edge_label_bound = cross_edge_lower_bound;
-            child_state->ComputeLowerBound();
-            child_state->mapping[u] = v;
-            child_state->inverse_mapping[v] = u;
-            if (depth == G1->GetNumVertices() - 1) {
-                current_best = std::min(current_best, child_state->lower_bound);
-                memcpy(&current_best_mapping[0], child_state->mapping, sizeof(int) * NumG1Vertices);
-                continue;
-            }
-//            fprintf(stdout,"Push state %p with bound %d\n", child_state, child_state->lower_bound);
-            queue.push(child_state);
+            for (; u_idx < branch_distance_matrix.size(); u_idx++)
+                branch_distance_matrix[u_idx][v_idx] = from_null;
         }
     }
-
-    int AStar() {
-        num_nodes = 0;
-        State* initial_state = new State(NULL);
-        initial_state->cost = 0;
-        initial_state->vertex_label_bound = 0;
-        initial_state->vertex_label_bound = vlabel_diff->GetDifference();
-        initial_state->inner_edge_label_bound = elabel_diff->GetDifference();
-        initial_state->ComputeLowerBound();
-        initial_state->depth = -1;
-        queue.push(initial_state);
-        int64_t max_qsize = 1;
-        while (!queue.empty()) {
-            State* current_state = queue.top();
-            num_nodes++;
-            if (num_nodes % LOG_EVERY == 0) {
-                fprintf(stderr,"%llu, Current best = %d, current cost = %d / lb = %d, depth %d, Queuesize %lu\n", num_nodes, current_best,
-                       current_state->cost, current_state->lower_bound, current_state->depth, queue.size());
-            }
-            queue.pop();
-            if (current_state->lower_bound >= current_best) {
-                queue = std::priority_queue<State*, std::vector<State*>, StateComparator>();
-                break;
-            }
-            if (threshold >= 0) {
-                if (current_best < threshold) {
-                    queue = std::priority_queue<State*, std::vector<State*>, StateComparator>();
-                    break;
-                }
-                if (current_state->lower_bound > threshold) {
-                    current_best = -1;
-                    queue = std::priority_queue<State*, std::vector<State*>, StateComparator>();
-                    break;
-                }
-            }
-            ExtendState(current_state);
-            max_qsize = std::max(max_qsize, (int64_t)queue.size());
-        }
-        if (threshold >= 0 and current_best > threshold) {current_best = -1;}
-        log.AddResult("MaxQueueSize",max_qsize, RESULT_INT64);
-        log.AddResult("AStarNodes", num_nodes, RESULT_INT64);
-        log.AddResult("EditDistance", current_best, RESULT_INT);
-        return current_best;
-    }
-
 
 
     int ComputeDistance(std::vector<int>& mapping, bool verbose=false) {
@@ -375,6 +312,39 @@ public:
         return cost;
     }
 
+    int ComputeDistance(State *state) {
+        int cost = 0;
+        // vertex re-labeling cost
+        for (int i = 0; i < G1->GetNumVertices(); i++) {
+            int l1 = G1->GetVertexLabel(i);
+            int l2 = G2->GetVertexLabel(state->mapping[i]);
+            if (l1 != l2) {
+                cost++;
+            }
+        }
+        cost += (G2->GetNumVertices() - G1->GetNumVertices());
+        for (auto &[u, v] : G1->GetEdges()) {
+            int fu = state->mapping[u], fv = state->mapping[v];
+            int l1 = G1->GetEdgeLabel(u, v);
+            int l2 = G2->GetEdgeLabel(fu, fv);
+            if (l1 != l2) {
+                cost++;
+            }
+        }
+        for (auto &[u, v] : G2->GetEdges()) {
+            int inv_u = state->inverse_mapping[u], inv_v = state->inverse_mapping[v];
+            if (inv_u == -1 || inv_v == -1) {
+                cost++;
+            }
+            else {
+                int l = G1->GetEdgeLabel(inv_u, inv_v);
+                if (l == -1) {
+                    cost++;
+                }
+            }
+        }
+        current_best = std::min(cost, current_best);
+        return cost;
+    }
 };
-
 }

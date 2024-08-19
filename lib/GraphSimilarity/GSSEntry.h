@@ -30,7 +30,7 @@ namespace GraphLib::GraphSimilarity {
         inline std::vector<int>& GetVerticesByLabel(int label) {return vertices_by_label[label];}
         inline std::vector<int>& GetEdgesByLabel(int label) {return edges_by_label[label];}
         inline std::vector<int>& GetDegreeSequence() {return degree_sequence;}
-
+        const Branch& GetBranch(int v) {return branches[v];}
         void BuildDegreeSequence() {
             degree_sequence.resize(num_vertex);
             for (int i = 0; i < num_vertex; i++) {
@@ -116,19 +116,16 @@ namespace GraphLib::GraphSimilarity {
             branches.resize(num_vertex);
             branch_ids.resize(num_vertex);
             for (int i = 0; i < num_vertex; i++) {
+                std::sort(adj_list[i].begin(), adj_list[i].end(), [this, i](int u, int v) {
+                    return adj_matrix[i][u] < adj_matrix[i][v];
+                });
                 branches[i].vertex_label = vertex_label[i];
                 branches[i].edge_labels.resize(adj_list[i].size());
                 for (int j = 0; j < adj_list[i].size(); j++) {
                     branches[i].edge_labels[j] = adj_matrix[i][adj_list[i][j]];
                 }
-                std::sort(branches[i].edge_labels.begin(), branches[i].edge_labels.end());
                 auto it = seen_branch_ids.find(branches[i]);
                 if (it == seen_branch_ids.end()) {
-//                    fprintf(stderr, "Insert new branch %lu\n", seen_branch_structures.size());
-//                    fprintf(stderr, " Branch %lu: %d | ", seen_branch_structures.size(), branches[i].vertex_label);
-//                    for (auto el : branches[i].edge_labels)
-//                        fprintf(stderr, "%d ", el);
-//                    fprintf(stderr, "\n");
                     branch_ids[i] = seen_branch_structures.size();
                     seen_branch_ids[branches[i]] = seen_branch_structures.size();
                     seen_branch_structures.push_back(branches[i]);

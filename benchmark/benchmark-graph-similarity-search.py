@@ -5,7 +5,7 @@ import ast
 def run(args):
     binary = "GraphSimilaritySearch"
     data, query, tau = args
-    command = f"../build/{binary} -d {data} -q {query} -t {tau} > ./results/run_{tau}.out"
+    command = f"../build/{binary} -d {data} -q {query} -t {tau}"
     if platform.system() == "Darwin":
         cmd = f"(/usr/bin/time -l {command}) 2>&1"
     else:

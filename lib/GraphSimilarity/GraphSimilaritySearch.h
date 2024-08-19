@@ -11,12 +11,15 @@
 #include "GraphSimilarity/GSSEntry.h"
 #include "GraphSimilarity/EditDistance.h"
 #include "GraphSimilarity/PartitionFilter.h"
+#include "GraphSimilarity/GraphEditDistance/AStarLSa.h"
+//#include "GraphSimilarity/GraphEditDistance/AStarBMa.h"
+//#include "GraphSimilarity/GraphEditDistance/AStarMixed.h"
+#include "GraphSimilarity/GraphEditDistance/OurGED.h"
 
 namespace GraphLib::GraphSimilarity {
-
     class GraphSimilaritySearch {
         double total_filtering_time = 0.0, total_verifying_time = 0.0;
-        std::vector<GSSEntry*> data_graphs;
+        std::vector<GSSEntry*> data_graphs, query_graphs;
         GSSEntry *query = nullptr;
         std::vector<std::vector<int>> indexed_branch_edit_distance;
         std::map<Branch, int> seen_branch_ids;
@@ -24,10 +27,10 @@ namespace GraphLib::GraphSimilarity {
         std::unordered_map<std::string, int> global_vertex_labels, global_edge_labels;
         int num_global_vertex_labels = 1, num_global_edge_labels = 1, tau = 0, num_indexed_branches;
         ResultLogger log;
-        DifferenceVector vlabel_diff, elabel_diff;
         Hungarian *hungariansolver = nullptr;
 
-        EditDistanceSolver GEDSolver;
+//        AStarBMa GEDSolver;
+        OurGEDwithBM GEDSolver;
 
         int num_answer = 0;
         std::vector<ResultLogger> ged_logs;
@@ -50,50 +53,24 @@ namespace GraphLib::GraphSimilarity {
             data_graphs.clear();
         }
 
-        /**
-         * Functions for GED Filtering
-         */
-
-        int NaiveCountBound(int data_idx) {
-            GSSEntry *data = data_graphs[data_idx];
-            int bound = abs(data->GetNumVertices() - query->GetNumVertices()) + abs(data->GetNumEdges() - query->GetNumEdges());
-            return bound;
-        }
-
-        int DegreeSequenceBound(int data_idx) {
-            GSSEntry *data = data_graphs[data_idx];
-            int pos = 0, neg = 0;
-            auto &g1_deg = data->GetDegreeSequence();
-            auto &g2_deg = query->GetDegreeSequence();
-            for (int i = 0; i < query->GetNumVertices(); i++) {
-                int a = (i >= data->GetNumVertices()) ? 0 : g1_deg[i];
-                int b = g2_deg[i];
-                if (a > b) pos += (a - b);
-                if (a < b) neg += (b - a);
-            }
-            return (pos + 1) / 2 + (neg + 1) / 2;
-        }
-
-        int LabelSetDifferenceBound(int data_idx) {
-            GSSEntry *data = data_graphs[data_idx];
-            vlabel_diff.reset();
-            elabel_diff.reset();
-            for (auto &[l, t] : data->GetVertexLabelFrequency())
-                vlabel_diff.update(l, t);
-            for (auto &[l, t] : query->GetVertexLabelFrequency())
-                vlabel_diff.update(l, -t);
-            for (auto &[l, t] : data->GetEdgeLabelFrequency())
-                elabel_diff.update(l, t);
-            for (auto &[l, t] : query->GetEdgeLabelFrequency())
-                elabel_diff.update(l, -t);
-            int cost = 0;
-            cost = vlabel_diff.GetDifference() + elabel_diff.GetDifference();
-            return cost;
-        }
-
         int BranchBound(int data_idx);
         int PartitionBound(int data_idx);
+
+        void ProcessSimilaritySearch(int tau_) {
+            this->tau = tau_;
+            for (auto &q : query_graphs) {
+                RetrieveSimilarGraphs(q, tau);
+            }
+            log.AddResult("NUM_CANDIDATES", total_candidates, RESULT_INT);
+            log.AddResult("NUM_FILTERED", total_filtered, RESULT_INT);
+            log.AddResult("FILTERING_TIME", total_filtering_time, RESULT_DOUBLE_FIXED);
+            log.AddResult("VERIFY_TIME", total_verifying_time, RESULT_DOUBLE_FIXED);
+            log.AddResult("Ans", num_answer, RESULT_INT);
+            log.AddResult("TotalSearchSpace", (int64_t)Total(ged_logs, "AStarNodes") , RESULT_INT64);
+            log.AddResult("TotalMaxQueueSize", (int64_t)Total(ged_logs, "MaxQueueSize"), RESULT_INT64);
+        }
     };
+
 
     void GraphSimilaritySearch::LoadGraphDatabase(std::string &filename, int opt) {
         std::ifstream fin(filename);
@@ -141,18 +118,8 @@ namespace GraphLib::GraphSimilarity {
                                  graph_edges[i], graph_edge_labels[i]);
             if (opt == -1)
                 data_graphs.emplace_back(G);
-            else {
-                RetrieveSimilarGraphs(G, opt);
-            }
-        }
-        if (opt >= 0) {
-            log.AddResult("NUM_CANDIDATES", total_candidates, RESULT_INT);
-            log.AddResult("NUM_FILTERED", total_filtered, RESULT_INT);
-            log.AddResult("FILTERING_TIME", total_filtering_time, RESULT_DOUBLE_FIXED);
-            log.AddResult("VERIFY_TIME", total_verifying_time, RESULT_DOUBLE_FIXED);
-            log.AddResult("Ans", num_answer, RESULT_INT);
-            log.AddResult("TotalSearchSpace", (int64_t)Total(ged_logs, "AStarNodes") , RESULT_INT64);
-            log.AddResult("TotalMaxQueueSize", (int64_t)Total(ged_logs, "MaxQueueSize"), RESULT_INT64);
+            else
+                query_graphs.emplace_back(G);
         }
     }
 
@@ -170,46 +137,35 @@ namespace GraphLib::GraphSimilarity {
             }
         }
         num_indexed_branches = indexed_branch_edit_distance.size();
+        for (auto &q : query_graphs) {
+            q->BuildBranches(seen_branch_ids, seen_branch_structures);
+        }
     }
 
     void GraphSimilaritySearch::RetrieveSimilarGraphs(GSSEntry* query_, int tau_) {
         this->query = query_;
         this->tau = tau_;
         int num_filtered = 0, num_candidates = 0;
-        vlabel_diff.init(100); elabel_diff.init(20);
         for (int data_idx = 0; data_idx < data_graphs.size(); data_idx++) {
             GSSEntry *data = data_graphs[data_idx];
-            vlabel_diff.reset(); elabel_diff.reset();
-            Timer timer; timer.Start();
-            Timer verification_timer;
-            int naive_count_bound = -1, degree_seq_bound = -1, label_set_bound = -1, branch_bound = -1, partition_bound = -1, ed;
-            naive_count_bound = NaiveCountBound(data_idx);
-            if (naive_count_bound > tau) goto filtered;
-            degree_seq_bound  = DegreeSequenceBound(data_idx);
-            if (degree_seq_bound > tau) goto filtered;
-            label_set_bound   = LabelSetDifferenceBound(data_idx);
-            if (label_set_bound > tau) goto filtered;
-            branch_bound      = BranchBound(data_idx);
-            if (branch_bound > tau) goto filtered;
-            timer.Stop(); total_filtering_time+=timer.GetTime();
-
-            verify:
-            num_candidates++;
-            verification_timer.Start();
-//            fprintf(stdout, "CandPair %d %d\n", query->GetId(), data->GetId());
-            GEDSolver.Initialize(query, data, this->tau, &vlabel_diff, &elabel_diff);
-            if (GEDSolver.AStar() != -1) {
-                num_answer++;
+//            if (data->GetId() != query->GetId()) continue;
+            GEDSolver.InitializeSolver(query, data, this->tau);
+            Timer filtering_timer; filtering_timer.Start();
+            bool filtering_result = GEDSolver.GEDVerificiationFiltering();
+            filtering_timer.Stop(); total_filtering_time += filtering_timer.GetTime();
+            if (filtering_result) {
+                num_candidates++;
+                Timer verification_timer;
+                verification_timer.Start();
+                int ged = GEDSolver.GED();
+                if (ged != -1) {
+                    num_answer++;
+                }
+                verification_timer.Stop(); total_verifying_time += verification_timer.GetTime();
             }
+            else num_filtered++;
             ged_logs.push_back(GEDSolver.GetLog());
-            verification_timer.Stop(); total_verifying_time+=verification_timer.GetTime();
             continue;
-
-            filtered:
-            timer.Stop(); total_filtering_time+=timer.GetTime();
-            num_filtered++;
-            continue;
-
         }
         total_candidates += num_candidates;
         total_filtered += num_filtered;
@@ -251,6 +207,7 @@ namespace GraphLib::GraphSimilarity {
         }
         Hungarian hungarian(cost_matrix);
         hungarian.Solve();
+//        hungarian.Print();
         int cost = (hungarian.GetTotalCost() + 1) / 2;
         return cost;
     }
