@@ -72,6 +72,10 @@ protected:
   int num_colors = 0;
   int max_color_degree = 0;
   std::vector<std::vector<int>> color_partition, aux;
+  BBGColorTree *root;
+  std::vector<BBGColorTree *> leaf_nodes;
+  std::vector<BBGColorTree *> vertex_to_leaf_node;
+  std::vector<BBGColorTree *> color_to_node;
   virtual void SplitUpColor(int s) {
     max_color_degree = max_cdeg[s];
     memset(num_cdeg, 0, sizeof(int) * (max_color_degree + 1));
