@@ -216,6 +216,55 @@ public:
       if (state->inverse_mapping[v] == -1)
         rem_right.emplace_back(v);
     }
+
+    for (int v_idx = 0; v_idx < rem_right.size(); v_idx++) {
+      int v = rem_right[v_idx];
+      auto &v_nbrs = G2->GetNeighbors(v);
+      int u_idx = 0;
+      for (u_idx = 0; u_idx < rem_left.size(); u_idx++) {
+        int u = rem_left[u_idx];
+        auto &u_nbrs = G1->GetNeighbors(u);
+        diff.reset();
+        if (G1->GetVertexLabel(u) != G2->GetVertexLabel(v)) {
+          branch_distance_matrix[u_idx][v_idx] += 2;
+        }
+        for (int l = 0; l < u_nbrs.size(); l++) {
+          int u_nbr = u_nbrs[l];
+          int u_el = G1->GetEdgeLabel(u, u_nbr);
+          if (state->mapping[u_nbr] == -1) {
+            diff.update(u_el, 1);
+          } else {
+            int v_mapping_el = G2->GetEdgeLabel(v, state->mapping[u_nbr]);
+            if (v_mapping_el != u_el) {
+              branch_distance_matrix[u_idx][v_idx] += 2;
+            }
+          }
+        }
+        for (int r = 0; r < v_nbrs.size(); r++) {
+          int v_nbr = v_nbrs[r];
+          int v_el = G2->GetEdgeLabel(v, v_nbr);
+          if (state->inverse_mapping[v_nbr] == -1) {
+            diff.update(v_el, -1);
+          } else {
+            int u_mapping_el =
+                G1->GetEdgeLabel(u, state->inverse_mapping[v_nbr]);
+            if (u_mapping_el == -1) {
+              branch_distance_matrix[u_idx][v_idx] += 2;
+            }
+          }
+        }
+        int inner_distance = diff.GetDifference();
+        branch_distance_matrix[u_idx][v_idx] += inner_distance;
+      }
+      int from_null = BranchEditDistanceFromNull(G2->GetBranch(v));
+      for (int v_nbr : G2->GetNeighbors(v)) {
+        if (state->inverse_mapping[v_nbr] != -1) {
+          from_null++;
+        }
+      }
+      for (; u_idx < branch_distance_matrix.size(); u_idx++)
+        branch_distance_matrix[u_idx][v_idx] = from_null;
+    }
   }
 };
 } // namespace GraphLib::GraphSimilarity
