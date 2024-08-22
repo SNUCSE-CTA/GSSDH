@@ -55,6 +55,33 @@ struct State {
     delete[] mapping;
     delete[] inverse_mapping;
   }
+
+  // Assignment operator
+  State &operator=(const State &other) {
+    if (this == &other)
+      return *this;
+
+    // Free existing memory
+    delete[] mapping;
+    delete[] inverse_mapping;
+    // Copy data
+    id = other.id;
+    parent = other.parent;
+    next_mapping_order = other.next_mapping_order;
+    cost = other.cost;
+    depth = other.depth;
+    lower_bound = other.lower_bound;
+    vertex_label_bound = other.vertex_label_bound;
+    inner_edge_label_bound = other.inner_edge_label_bound;
+    cross_edge_label_bound = other.cross_edge_label_bound;
+    mapping = new int[NumG1Vertices];
+    inverse_mapping = new int[NumG2Vertices];
+    std::memcpy(mapping, other.mapping, sizeof(int) * NumG1Vertices);
+    std::memcpy(inverse_mapping, other.inverse_mapping,
+                sizeof(int) * NumG2Vertices);
+
+    return *this;
+  }
 };
 
 int State::global_state_id = 0;
