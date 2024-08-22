@@ -82,6 +82,10 @@ struct State {
 
     return *this;
   }
+  void ComputeLowerBound() {
+    lower_bound = cost + vertex_label_bound + inner_edge_label_bound +
+                  cross_edge_label_bound;
+  }
 };
 
 int State::global_state_id = 0;
