@@ -106,4 +106,16 @@ struct State {
   }
 };
 
+struct StateComparator {
+  bool operator()(const State *a, const State *b) const {
+    if (a->lower_bound == b->lower_bound) {
+      if (a->depth == b->depth) {
+        return a->id < b->id;
+      }
+      return a->depth < b->depth;
+    }
+    return a->lower_bound > b->lower_bound;
+  }
+};
+
 int State::global_state_id = 0;
