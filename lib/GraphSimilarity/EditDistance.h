@@ -326,5 +326,39 @@ public:
     current_best = std::min(cost, current_best);
     return cost;
   }
+
+  int ComputeDistance(State *state) {
+    int cost = 0;
+    // vertex re-labeling cost
+    for (int i = 0; i < G1->GetNumVertices(); i++) {
+      int l1 = G1->GetVertexLabel(i);
+      int l2 = G2->GetVertexLabel(state->mapping[i]);
+      if (l1 != l2) {
+        cost++;
+      }
+    }
+    cost += (G2->GetNumVertices() - G1->GetNumVertices());
+    for (auto &[u, v] : G1->GetEdges()) {
+      int fu = state->mapping[u], fv = state->mapping[v];
+      int l1 = G1->GetEdgeLabel(u, v);
+      int l2 = G2->GetEdgeLabel(fu, fv);
+      if (l1 != l2) {
+        cost++;
+      }
+    }
+    for (auto &[u, v] : G2->GetEdges()) {
+      int inv_u = state->inverse_mapping[u], inv_v = state->inverse_mapping[v];
+      if (inv_u == -1 || inv_v == -1) {
+        cost++;
+      } else {
+        int l = G1->GetEdgeLabel(inv_u, inv_v);
+        if (l == -1) {
+          cost++;
+        }
+      }
+    }
+    current_best = std::min(cost, current_best);
+    return cost;
+  }
 };
 } // namespace GraphLib::GraphSimilarity
