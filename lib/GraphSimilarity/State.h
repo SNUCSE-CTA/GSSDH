@@ -86,6 +86,16 @@ struct State {
     lower_bound = cost + vertex_label_bound + inner_edge_label_bound +
                   cross_edge_label_bound;
   }
+
+  std::string to_string() const {
+    std::ostringstream oss;
+    oss << "State " << id << ": ";
+    for (int i = 0; i < NumG1Vertices; i++) {
+      oss << mapping[i] << " ";
+    }
+    oss << "| Cost = " << cost << " | Lb = " << lower_bound << "";
+    return oss.str();
+  }
 };
 
 int State::global_state_id = 0;
