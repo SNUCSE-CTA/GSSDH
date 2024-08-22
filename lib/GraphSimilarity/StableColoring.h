@@ -207,6 +207,12 @@ public:
         current_color++;
         S[stack_size++] = current_color;
         in_stack[current_color] = true;
+        BBGColorTree *new_node = new BBGColorTree(1);
+        new_node->parent = root;
+        root->children.push_back(new_node);
+        color_to_node[current_color] = new_node;
+        leaf_nodes.push_back(new_node);
+        node = new_node;
       }
       color[u] = current_color;
       inv_idx[u] = color_partition[current_color].size();
