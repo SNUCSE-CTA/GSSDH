@@ -274,5 +274,57 @@ public:
     }
     return ComputeDistance(mapping, inverse_mapping, verbose);
   }
+
+  int ComputeDistance(std::vector<int> &mapping,
+                      std::vector<int> &inverse_mapping, bool verbose = false) {
+    int cost = 0;
+    // vertex re-labeling cost
+    for (int i = 0; i < G1->GetNumVertices(); i++) {
+      int l1 = G1->GetVertexLabel(i);
+      int l2 = G2->GetVertexLabel(mapping[i]);
+      if (l1 != l2) {
+        if (verbose)
+          printf("Vertex %d(%d)-%d(%d) re-labeling cost!\n", i, l1, mapping[i],
+                 l2);
+        cost++;
+      }
+    }
+    if (verbose)
+      printf("#Missing Vertices: %d\n",
+             (G2->GetNumVertices() - G1->GetNumVertices()));
+    cost += (G2->GetNumVertices() - G1->GetNumVertices());
+    for (auto &[u, v] : G1->GetEdges()) {
+      int fu = mapping[u], fv = mapping[v];
+      int l1 = G1->GetEdgeLabel(u, v);
+      int l2 = G2->GetEdgeLabel(fu, fv);
+      if (l1 != l2) {
+        if (verbose)
+          printf("Edge (%d, %d)(%d)-(%d, %d)(%d) re-labeling cost!\n", u, v, l1,
+                 fu, fv, l2);
+        cost++;
+      }
+    }
+    for (auto &[u, v] : G2->GetEdges()) {
+      int inv_u = inverse_mapping[u], inv_v = inverse_mapping[v];
+      if (inv_u == -1 || inv_v == -1) {
+        if (verbose)
+          printf("Edge (%d, %d) in G2 is nonexistent as G1 is (%d, %d)\n", u, v,
+                 inv_u, inv_v);
+        cost++;
+      } else {
+        int l = G1->GetEdgeLabel(inv_u, inv_v);
+        if (l == -1) {
+          if (verbose)
+            printf("Edge (%d, %d) in G2 is nonexistent as G1 is (%d, %d)\n", u,
+                   v, inv_u, inv_v);
+          cost++;
+        }
+      }
+    }
+    if (verbose)
+      printf("Total ED Cost: %d\n", cost);
+    current_best = std::min(cost, current_best);
+    return cost;
+  }
 };
 } // namespace GraphLib::GraphSimilarity
