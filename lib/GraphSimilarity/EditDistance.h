@@ -120,5 +120,45 @@ public:
 
   int GetCurrentBestGED() const { return current_best; }
   ResultLogger GetLog() { return log; }
+
+  void ComputeMatchingOrder() {
+    int N = G1->GetNumVertices();
+    std::vector<int> T(N, 0), w(N, 0);
+    auto vlabel_freq = G1->GetVertexLabelFrequency();
+    auto elabel_freq = G1->GetEdgeLabelFrequency();
+    for (int i = 0; i < N; i++) {
+      w[i] -= 2 * vlabel_freq[G1->GetVertexLabel(i)];
+      for (int x : G1->GetNeighbors(i)) {
+        w[i] -= elabel_freq[G1->GetEdgeLabel(i, x)];
+      }
+    }
+    std::fill(T.begin(), T.end(), 0);
+    int max_idx = std::max_element(w.begin(), w.end()) - w.begin();
+    std::priority_queue<std::pair<int, int>> weighted_queue;
+    weighted_queue.push({w[max_idx], max_idx});
+    T[max_idx] = 1;
+    while (!weighted_queue.empty()) {
+      int u = weighted_queue.top().second;
+      weighted_queue.pop();
+      matching_order.push_back(u);
+      for (int x : G1->GetNeighbors(u)) {
+        if (T[x] == 1)
+          continue;
+        T[x] = 1;
+        weighted_queue.push({w[x], x});
+      }
+    }
+    for (int i = 0; i < N; i++) {
+      if (T[i] != 1) {
+        matching_order.push_back(i);
+      }
+    }
+    inv_matching_order.resize(G1->GetNumVertices(), -1);
+    for (int i = 0; i < G1->GetNumVertices(); i++) {
+      inv_matching_order[matching_order[i]] = i;
+    }
+  }
+
+  virtual int GED() { return 0; };
 };
 } // namespace GraphLib::GraphSimilarity
