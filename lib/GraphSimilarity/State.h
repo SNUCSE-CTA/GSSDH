@@ -49,6 +49,12 @@ struct State {
     std::memcpy(inverse_mapping, other.inverse_mapping,
                 sizeof(int) * NumG2Vertices);
   }
+
+  // Destructor
+  ~State() {
+    delete[] mapping;
+    delete[] inverse_mapping;
+  }
 };
 
 int State::global_state_id = 0;
