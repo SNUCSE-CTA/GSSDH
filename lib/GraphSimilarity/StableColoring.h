@@ -130,6 +130,10 @@ protected:
           color_to_node[c] = new_node;
           vertex_to_leaf_node[v] = new_node;
           leaf_nodes.push_back(new_node);
+        } else {
+          BBGColorTree *node = color_to_node[c];
+          node->vertices.push_back(v);
+          vertex_to_leaf_node[v] = node;
         }
       }
     }
