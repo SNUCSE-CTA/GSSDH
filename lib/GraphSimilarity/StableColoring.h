@@ -411,6 +411,84 @@ public:
     return v;
   }
 
+  void VertexMatching() {
+    root->was_in_queue = false;
+    const int combined_index = G->combined_index;
+    mapping = std::vector<int>(combined_index, -1);
+    inverse_mapping =
+        std::vector<int>(G->GetNumVertices() - combined_index, -1);
+    while (!leaf_nodes.empty()) {
+      // Debug
+      // for (auto leaf : leaf_nodes) {
+      //   for (int v : leaf->vertices) {
+      //     std::cout << v << " ";
+      //   }
+      //   std::cout << std::endl;
+      // }
+      // std::cout << std::endl;
+
+      BBGColorTree *leaf_node = leaf_nodes.back();
+      leaf_nodes.pop_back();
+
+      // Split the leaf node into two groups by the combined index
+      const int num_vertices = leaf_node->vertices.size();
+      int G1_index = 0, G2_index = 0, num_G1_vertices = 0, num_G2_vertices = 0;
+      std::sort(leaf_node->vertices.begin(), leaf_node->vertices.end());
+      for (int i = 0; i < num_vertices; ++i) {
+        if (leaf_node->vertices[i] < combined_index) {
+          num_G1_vertices++;
+        } else {
+          break;
+        }
+      }
+      G2_index = num_G1_vertices;
+      num_G2_vertices = num_vertices - num_G1_vertices;
+
+      // Match the vertices in the two groups
+      while (G1_index < num_G1_vertices && G2_index < num_vertices) {
+        const int u = leaf_node->vertices[G1_index];
+        const int v = leaf_node->vertices[G2_index];
+        mapping[u] = v - combined_index;
+        inverse_mapping[v - combined_index] = u;
+        G1_index++;
+        G2_index++;
+      }
+
+      // Add the remaining vertices to the parent node
+      if (num_G1_vertices != num_G2_vertices && leaf_node != root) {
+        int start_index =
+            num_G1_vertices > num_G2_vertices ? G1_index : G2_index;
+        int end_index =
+            num_G1_vertices > num_G2_vertices ? num_G1_vertices : num_vertices;
+        BBGColorTree *parent = leaf_node->parent;
+        for (int i = start_index; i < end_index; ++i) {
+          parent->vertices.push_back(leaf_node->vertices[i]);
+        }
+        if (parent->was_in_queue == false) {
+          for (int i = 0; i < leaf_nodes.size(); ++i) {
+            if (leaf_nodes[i]->height > parent->height) {
+              leaf_nodes.insert(leaf_nodes.begin() + i, parent);
+              parent->was_in_queue = true;
+              break;
+            }
+          }
+          if (parent->was_in_queue == false) {
+            leaf_nodes.push_back(parent);
+            parent->was_in_queue = true;
+          }
+        }
+      }
+    }
+
+    // print all mappings
+    // for (int i = 0; i < combined_index; ++i) {
+    //   printf("%d -> %d\n", i, mapping[i] + combined_index);
+    // }
+    // for (int i = 0; i < G->GetNumVertices() - combined_index; ++i) {
+    //   printf("%d -> %d\n", i + combined_index, inverse_mapping[i]);
+    // }
+  }
+
   void PrintEntireColorPartition(int upto = 5) {
     fprintf(stdout, "Color info:\n");
     for (int i = 0; i < std::min(GetNumColors(), GetNumColors()); i++) {
