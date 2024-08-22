@@ -217,6 +217,5 @@ public:
         rem_right.emplace_back(v);
     }
   }
-}
 };
 } // namespace GraphLib::GraphSimilarity
