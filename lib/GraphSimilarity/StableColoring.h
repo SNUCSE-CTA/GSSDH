@@ -189,6 +189,15 @@ public:
     vertex_to_leaf_node.resize(G->GetNumVertices());
     color_to_node.resize(G->GetNumVertices(), nullptr);
 
+    // First color node
+    BBGColorTree *node = new BBGColorTree(1);
+    node->parent = root;
+    node->vertices.push_back(perm[0]);
+    root->children.push_back(node);
+    vertex_to_leaf_node[perm[0]] = node;
+    color_to_node[current_color] = node;
+    leaf_nodes.push_back(node);
+
     // Initial coloring
     for (int i = 1; i < G->GetNumVertices(); i++) {
       int u = perm[i], v = perm[i - 1];
