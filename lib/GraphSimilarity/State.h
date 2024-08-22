@@ -31,6 +31,24 @@ struct State {
       memset(inverse_mapping, -1, sizeof(int) * NumG2Vertices);
     }
   };
+
+  // Copy constructor
+  State(const State &other) {
+    id = global_state_id++;
+    parent = other.parent;
+    next_mapping_order = other.next_mapping_order;
+    cost = other.cost;
+    depth = other.depth;
+    lower_bound = other.lower_bound;
+    vertex_label_bound = other.vertex_label_bound;
+    inner_edge_label_bound = other.inner_edge_label_bound;
+    cross_edge_label_bound = other.cross_edge_label_bound;
+    mapping = new int[NumG1Vertices];
+    inverse_mapping = new int[NumG2Vertices];
+    std::memcpy(mapping, other.mapping, sizeof(int) * NumG1Vertices);
+    std::memcpy(inverse_mapping, other.inverse_mapping,
+                sizeof(int) * NumG2Vertices);
+  }
 };
 
 int State::global_state_id = 0;
