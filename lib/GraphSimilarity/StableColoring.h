@@ -102,17 +102,6 @@ protected:
         }
       }
     }
-    BBGColorTree *prev_node = color_to_node[s];
-    BBGColorTree *aux_node = new BBGColorTree(prev_node->height + 1);
-    // find prev_node in leaf_nodes and remove it
-    leaf_nodes.erase(
-        std::find(leaf_nodes.begin(), leaf_nodes.end(), prev_node));
-    aux_node->parent = prev_node;
-    aux_node->vertices = prev_node->vertices;
-    prev_node->children.push_back(aux_node);
-    prev_node->vertices.clear();
-    color_to_node[s] = aux_node;
-    leaf_nodes.push_back(aux_node);
     for (int v : aux[s]) {
       int c = color_mapping[cdeg[v]];
     }
