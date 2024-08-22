@@ -202,5 +202,21 @@ public:
   }
 
   virtual int GED() { return 0; };
+
+  void ComputeBranchDistanceMatrix(
+      State *state, std::vector<std::vector<int>> &branch_distance_matrix,
+      std::vector<int> &rem_left, std::vector<int> &rem_right) {
+    DifferenceVector diff;
+    diff.init(20);
+    for (int u = 0; u < G1->GetNumVertices(); u++) {
+      if (state->mapping[u] == -1)
+        rem_left.emplace_back(u);
+    }
+    for (int v = 0; v < G2->GetNumVertices(); v++) {
+      if (state->inverse_mapping[v] == -1)
+        rem_right.emplace_back(v);
+    }
+  }
+}
 };
 } // namespace GraphLib::GraphSimilarity
