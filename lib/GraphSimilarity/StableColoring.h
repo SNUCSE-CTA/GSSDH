@@ -127,8 +127,6 @@ protected:
           new_node->parent = prev_node;
           new_node->vertices.push_back(v);
           prev_node->children.push_back(new_node);
-          color_to_node[c] = new_node;
-          vertex_to_leaf_node[v] = new_node;
           leaf_nodes.push_back(new_node);
         } else {
           BBGColorTree *node = color_to_node[c];
