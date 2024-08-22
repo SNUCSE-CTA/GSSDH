@@ -183,6 +183,13 @@ public:
     in_stack[current_color] = true;
     inv_idx[perm[0]] = color_partition[current_color].size();
     color_partition[current_color].push_back(perm[0]);
+
+    // Initialize color tree
+    root = new BBGColorTree();
+    vertex_to_leaf_node.resize(G->GetNumVertices());
+    color_to_node.resize(G->GetNumVertices(), nullptr);
+
+    // Initial coloring
     for (int i = 1; i < G->GetNumVertices(); i++) {
       int u = perm[i], v = perm[i - 1];
       int du = G->GetDegree(u), dv = G->GetDegree(v);
