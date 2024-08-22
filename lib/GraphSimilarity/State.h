@@ -96,6 +96,14 @@ struct State {
     oss << "| Cost = " << cost << " | Lb = " << lower_bound << "";
     return oss.str();
   }
+
+  void Print() {
+    fprintf(stderr, "State[%d]: ", id);
+    for (int i = 0; i < NumG1Vertices; i++) {
+      fprintf(stderr, "%d ", mapping[i]);
+    }
+    fprintf(stderr, "| Cost = %d | Lb = %d\n\n", cost, lower_bound);
+  }
 };
 
 int State::global_state_id = 0;
