@@ -29,6 +29,35 @@ namespace GraphLib {
         Scalable Graph Isomorphism: Combining Pairwise Color Refinement and
  Backtracking via Compressed Candidate Space, ICDE 2021
  */
+class BBGColorTree {
+public:
+  BBGColorTree *parent;
+  // int color;
+  std::vector<int> vertices;
+  std::vector<BBGColorTree *> children;
+  int height;
+  bool was_in_queue = false;
+  BBGColorTree(int h = 0) : parent(nullptr) {
+    was_in_queue = false;
+    height = h;
+  }
+
+  void Debug() { DebugHelper(); }
+
+  void DebugHelper(int indent = 0) {
+    std::cout << std::string(indent, ' ') << "Height: " << height << std::endl;
+    std::cout << std::string(indent, ' ') << "Vertices: ";
+    for (int v : vertices) {
+      std::cout << v << " ";
+    }
+    std::cout << std::endl;
+    std::cout << std::string(indent, ' ') << "Children: " << std::endl;
+    for (BBGColorTree *child : children) {
+      child->DebugHelper(indent + 2);
+    }
+  }
+};
+
 class StableColoring {
 protected:
   LabeledGraph *G;
