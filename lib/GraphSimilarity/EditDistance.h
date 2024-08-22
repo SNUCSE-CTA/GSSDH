@@ -190,6 +190,17 @@ public:
     return cost;
   }
 
+  void PrepareGED() {
+    NumG1Vertices = G1->GetNumVertices();
+    NumG2Vertices = G2->GetNumVertices();
+    matching_order.clear();
+    ComputeMatchingOrder();
+    current_best_mapping.clear();
+    current_best_mapping.resize(G1->GetNumVertices(), -1);
+    num_nodes = 0;
+    current_best = 1e9;
+  }
+
   virtual int GED() { return 0; };
 };
 } // namespace GraphLib::GraphSimilarity
