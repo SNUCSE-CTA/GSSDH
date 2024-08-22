@@ -159,6 +159,37 @@ public:
     }
   }
 
+  int GetChildEditCost(State *parent_state, int u, int v) {
+    int cost = parent_state->cost;
+    int u_label = G1->GetVertexLabel(u), v_label = G2->GetVertexLabel(v);
+    // update editorial cost
+    if (u_label != v_label) {
+      cost++;
+    }
+    int num_u_edges = 0;
+    for (int u_nbr : G1->GetNeighbors(u)) {
+      if (parent_state->mapping[u_nbr] != -1)
+        num_u_edges++;
+    }
+    int ec = num_u_edges;
+    for (int vprime : G2->GetNeighbors(v)) {
+      int uprime = parent_state->inverse_mapping[vprime];
+      if (uprime == -1)
+        continue;
+      ec++;
+      int l1 = G1->GetEdgeLabel(u, uprime);
+      int l2 = G2->GetEdgeLabel(v, vprime);
+      if (l1 == -1)
+        continue;
+      if (l1 == l2)
+        ec -= 2;
+      else
+        ec--;
+    }
+    cost += ec;
+    return cost;
+  }
+
   virtual int GED() { return 0; };
 };
 } // namespace GraphLib::GraphSimilarity
