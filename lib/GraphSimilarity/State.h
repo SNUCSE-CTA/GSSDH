@@ -11,6 +11,26 @@ struct State {
   int *mapping;
   int *inverse_mapping;
   static int global_state_id;
+  State(State *p, int c = -1, int d = -1) {
+    id = global_state_id++;
+    parent = p;
+    cost = c;
+    depth = d;
+    lower_bound = 0;
+    vertex_label_bound = inner_edge_label_bound = cross_edge_label_bound = 0;
+    mapping = new int[NumG1Vertices];
+    inverse_mapping = new int[NumG2Vertices];
+    if (p != NULL) {
+      std::memcpy(mapping, p->mapping, sizeof(int) * NumG1Vertices);
+      std::memcpy(inverse_mapping, p->inverse_mapping,
+                  sizeof(int) * NumG2Vertices);
+      depth = p->depth + 1;
+      cost = p->cost;
+    } else {
+      memset(mapping, -1, sizeof(int) * NumG1Vertices);
+      memset(inverse_mapping, -1, sizeof(int) * NumG2Vertices);
+    }
+  };
 };
 
 int State::global_state_id = 0;
