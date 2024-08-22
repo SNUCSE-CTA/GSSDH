@@ -30,7 +30,7 @@ namespace GraphLib {
  Backtracking via Compressed Candidate Space, ICDE 2021
  */
 class StableColoring {
- protected:
+protected:
   LabeledGraph *G;
   int *S, stack_size;
   bool *in_stack, *used;
@@ -50,7 +50,8 @@ class StableColoring {
     int b = 0;
     for (int v : aux[s]) {
       num_cdeg[cdeg[v]]++;
-      if (num_cdeg[cdeg[v]] > num_cdeg[b]) b = cdeg[v];
+      if (num_cdeg[cdeg[v]] > num_cdeg[b])
+        b = cdeg[v];
     }
     for (int i = 0; i <= max_color_degree; i++) {
       if (num_cdeg[i] >= 1) {
@@ -70,7 +71,6 @@ class StableColoring {
     }
     for (int v : aux[s]) {
       int c = color_mapping[cdeg[v]];
-      if (c != s) ChangeColor(v, c);
     }
   }
   virtual void ChangeColor(int v, int new_color) {
@@ -86,7 +86,7 @@ class StableColoring {
 
   int *perm;
 
- public:
+public:
   StableColoring(LabeledGraph *g) {
     G = g;
     num_color_cand = num_color_split = stack_size = 0;
@@ -130,8 +130,13 @@ class StableColoring {
       color[u] = current_color;
       inv_idx[u] = color_partition[current_color].size();
       color_partition[current_color].push_back(u);
+      node->vertices.push_back(u);
+      vertex_to_leaf_node[u] = node;
     }
     num_colors = current_color + 1;
+
+    // Debug color tree
+    // root->Debug();
   }
 
   void RefineStep() {
@@ -139,15 +144,18 @@ class StableColoring {
     in_stack[r] = false;
     for (int v : color_partition[r]) {
       for (int w : G->GetNeighbors(v)) {
-        if (color_partition[color[w]].size() == 1) continue;
+        if (color_partition[color[w]].size() == 1)
+          continue;
         int c = color[w];
         cdeg[w]++;
-        if (cdeg[w] == 1) aux[c].push_back(w);
+        if (cdeg[w] == 1)
+          aux[c].push_back(w);
         if (!used[c]) {
           color_cand[num_color_cand++] = c;
           used[c] = true;
         }
-        if (cdeg[w] > max_cdeg[c]) max_cdeg[c] = cdeg[w];
+        if (cdeg[w] > max_cdeg[c])
+          max_cdeg[c] = cdeg[w];
       }
     }
     for (int i = 0; i < num_color_cand; i++) {
@@ -156,15 +164,19 @@ class StableColoring {
         min_cdeg[c] = 0;
       else {
         min_cdeg[c] = max_cdeg[c];
-        for (int v : aux[c]) min_cdeg[c] = std::min(min_cdeg[c], cdeg[v]);
+        for (int v : aux[c])
+          min_cdeg[c] = std::min(min_cdeg[c], cdeg[v]);
       }
-      if (min_cdeg[c] < max_cdeg[c]) color_split[num_color_split++] = c;
+      if (min_cdeg[c] < max_cdeg[c])
+        color_split[num_color_split++] = c;
     }
-    for (int i = 0; i < num_color_split; i++) SplitUpColor(color_split[i]);
+    for (int i = 0; i < num_color_split; i++)
+      SplitUpColor(color_split[i]);
     num_color_split = 0;
     for (int i = 0; i < num_color_cand; i++) {
       int c = color_cand[i];
-      for (int v : aux[c]) cdeg[v] = 0;
+      for (int v : aux[c])
+        cdeg[v] = 0;
       max_cdeg[c] = 0;
       min_cdeg[c] = 0;
       aux[c].clear();
@@ -183,7 +195,8 @@ class StableColoring {
     return color_partition[c];
   }
   void Individualize(int v) {
-    if (color_partition[color[v]].size() == 1) return;
+    if (color_partition[color[v]].size() == 1)
+      return;
     int new_color = num_colors++;
     ChangeColor(v, new_color);
     S[stack_size++] = new_color;
@@ -194,7 +207,7 @@ class StableColoring {
 };
 
 class PairwiseStableColoring : public StableColoring {
- private:
+private:
   std::vector<std::vector<std::pair<int, int>>> history;
   int VL, VR;
   int *left_color_count, *right_color_count;
@@ -219,7 +232,10 @@ class PairwiseStableColoring : public StableColoring {
     }
   }
 
- public:
+public:
+  std::vector<int> mapping;
+  std::vector<int> inverse_mapping;
+
   PairwiseStableColoring(LabeledGraph *g1, LabeledGraph *g2,
                          LabeledGraph *combined)
       : StableColoring(combined) {
@@ -300,15 +316,17 @@ class PairwiseStableColoring : public StableColoring {
   }
 
   inline int BinaryMapping(int u) {
-    if (GetNumVertexClass(u) != 1) return -1;
+    if (GetNumVertexClass(u) != 1)
+      return -1;
     int v = -u;
-    for (int x : color_partition[color[u]]) v += x;
+    for (int x : color_partition[color[u]])
+      v += x;
     return v;
   }
 
   void PrintEntireColorPartition(int upto = 5) {
     fprintf(stdout, "Color info:\n");
-    for (int i = 0; i < std::min(GetNumColors(), upto); i++) {
+    for (int i = 0; i < std::min(GetNumColors(), GetNumColors()); i++) {
       fprintf(stdout, "  Color %d: %d left, %d right\n", i,
               GetLeftColorCount(i), GetRightColorCount(i));
       fprintf(stdout, "    Vertices: ");
@@ -317,6 +335,7 @@ class PairwiseStableColoring : public StableColoring {
       }
       fprintf(stdout, "\n");
     }
+    root->Debug();
   }
 };
-}  // namespace GraphLib
+} // namespace GraphLib
