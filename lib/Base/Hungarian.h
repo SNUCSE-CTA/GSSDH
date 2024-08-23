@@ -56,7 +56,7 @@ class Hungarian {
   }
 
   void InitializeVariables() {
-    //        fprintf(stderr, "Invoked Hungarian::InitializeVariables()\n");
+    // fprintf(stderr, "Invoked Hungarian::InitializeVariables()\n");
     std::fill(alpha.begin(), alpha.end(), 0);
     std::fill(beta.begin(), beta.end(), INF);
     for (int i = 0; i < N; i++) {
@@ -83,7 +83,7 @@ class Hungarian {
   }
 
   void RecalculatePotential() {
-    //        fprintf(stderr, "Invoked Hungarian::RecalculatePotential()\n");
+    // fprintf(stderr, "Invoked Hungarian::RecalculatePotential()\n");
     theta = INF;
     for (int i = 0; i < N; i++) {
       if (left_visited[i]) {
@@ -107,8 +107,8 @@ class Hungarian {
   }
 
   void Solve() {
-    //        fprintf(stderr, "Invoked Hungarian::Solve()\n");
-    //        Print();
+    // fprintf(stderr, "Invoked Hungarian::Solve()\n");
+    // Print();
     InitializeVariables();
     for (int i = 0; i < N; i++) {
       while (true) {
