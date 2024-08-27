@@ -12,6 +12,7 @@ class LabeledGraph : public Graph {
  public:
   int num_vertex_labels = 0, num_edge_labels = 0;
   std::vector<int> vertex_label, edge_label;
+  std::vector<int> vertex_color;
   std::unordered_map<int, int> vertex_label_frequency, edge_label_frequency;
 
   LabeledGraph() {}

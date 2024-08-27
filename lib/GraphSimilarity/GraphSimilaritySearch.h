@@ -37,7 +37,7 @@ class GraphSimilaritySearch {
   int num_answer = 0;
   std::vector<ResultLogger> ged_logs;
 
- public:
+public:
   int total_candidates = 0, total_filtered = 0;
   ResultLogger GetLog() { return log; }
   void LoadGraphDatabase(std::string &filename, int which);
@@ -233,4 +233,4 @@ int GraphSimilaritySearch::PartitionBound(int data_idx) {
   PartitionFilter partition_filter(query, data);
   return partition_filter.GetPartitionBound();
 }
-}  // namespace GraphLib::GraphSimilarity
+} // namespace GraphLib::GraphSimilarity
