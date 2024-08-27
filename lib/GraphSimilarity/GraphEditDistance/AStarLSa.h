@@ -5,9 +5,10 @@ DEBUG LSadebugger(2);
 
 namespace GraphLib::GraphSimilarity {
 class AStarLSa : public GraphEditDistanceSolver {
- public:
-  void ExtendState(State* state) {
-    if (state->cost >= current_best) return;
+public:
+  void ExtendState(State *state) {
+    if (state->cost >= current_best)
+      return;
     int depth = state->depth + 1;
     int u = matching_order[depth];
 
@@ -51,7 +52,8 @@ class AStarLSa : public GraphEditDistanceSolver {
     }
 
     for (int v = 0; v < G2->GetNumVertices(); v++) {
-      if (state->inverse_mapping[v] != -1) continue;
+      if (state->inverse_mapping[v] != -1)
+        continue;
 
       int child_cost = GetChildEditCost(state, u, v);
       int vertex_lower_bound = state->vertex_label_bound;
@@ -108,7 +110,7 @@ class AStarLSa : public GraphEditDistanceSolver {
       vertex_lower_bound = unmapped_vertex_labels.GetDifference();
       inner_edge_lower_bound = unmapped_inner_edge_labels.GetDifference();
       cross_edge_lower_bound = 0;
-      for (auto& it : unmapped_cross_edge_labels) {
+      for (auto &it : unmapped_cross_edge_labels) {
         cross_edge_lower_bound += it.GetDifference();
       }
       int lb =
@@ -141,11 +143,13 @@ class AStarLSa : public GraphEditDistanceSolver {
         }
       }
       // If decided to proceed with this...
-      if (child_cost + lb >= current_best) continue;
+      if (child_cost + lb >= current_best)
+        continue;
       if (threshold > 0) {
-        if (child_cost + lb > threshold) continue;
+        if (child_cost + lb > threshold)
+          continue;
       }
-      State* child_state = new State(state);
+      State *child_state = new State(state);
       // printf(
       //     "State [%p] Check Depth %d [Parent %p]! matching (% d(% d), % d(% "
       //     "d)) gives lb = % d, cost = % d(curbest = % d)\n ",
@@ -155,7 +159,8 @@ class AStarLSa : public GraphEditDistanceSolver {
       // ",
       //        vertex_lower_bound, inner_edge_lower_bound,
       //        cross_edge_lower_bound);
-      if (depth == 2) exit(1);
+      // if (depth == 2)
+      //   exit(1);
       child_state->cost = child_cost;
       child_state->vertex_label_bound = vertex_lower_bound;
       child_state->inner_edge_label_bound = inner_edge_lower_bound;
@@ -179,7 +184,7 @@ class AStarLSa : public GraphEditDistanceSolver {
 
   int GED() {
     PrepareGED();
-    State* initial_state = new State(NULL);
+    State *initial_state = new State(NULL);
     initial_state->cost = 0;
     initial_state->vertex_label_bound = 0;
     initial_state->vertex_label_bound = vlabel_diff->GetDifference();
@@ -189,7 +194,7 @@ class AStarLSa : public GraphEditDistanceSolver {
     queue.push(initial_state);
     int64_t max_qsize = 1;
     while (!queue.empty()) {
-      State* current_state = queue.top();
+      State *current_state = queue.top();
       num_nodes++;
       if (num_nodes % LOG_EVERY == 0) {
         fprintf(stderr,
@@ -200,19 +205,19 @@ class AStarLSa : public GraphEditDistanceSolver {
       }
       queue.pop();
       if (current_state->lower_bound >= current_best) {
-        queue =
-            std::priority_queue<State*, std::vector<State*>, StateComparator>();
+        queue = std::priority_queue<State *, std::vector<State *>,
+                                    StateComparator>();
         break;
       }
       if (threshold >= 0) {
         if (current_best < threshold) {
-          queue = std::priority_queue<State*, std::vector<State*>,
+          queue = std::priority_queue<State *, std::vector<State *>,
                                       StateComparator>();
           break;
         }
         if (current_state->lower_bound > threshold) {
           current_best = -1;
-          queue = std::priority_queue<State*, std::vector<State*>,
+          queue = std::priority_queue<State *, std::vector<State *>,
                                       StateComparator>();
           break;
         }
@@ -231,4 +236,4 @@ class AStarLSa : public GraphEditDistanceSolver {
     return current_best;
   }
 };
-}  // namespace GraphLib::GraphSimilarity
+} // namespace GraphLib::GraphSimilarity
