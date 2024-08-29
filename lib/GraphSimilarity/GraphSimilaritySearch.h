@@ -10,7 +10,8 @@
 #include "DataStructure/LabeledGraph.h"
 #include "DifferenceVector.h"
 #include "GraphSimilarity/EditDistance.h"
-#include "GraphSimilarity/GSSEntry.h"
+#include "GraphSimilarity/GraphColoring/GWL.h"
+// #include "GraphSimilarity/GSSEntry.h"
 // #include "GraphSimilarity/GraphEditDistance/AStarBMa.h"
 #include "GraphSimilarity/GraphEditDistance/AStarLSa.h"
 #include "GraphSimilarity/PartitionFilter.h"
@@ -71,6 +72,10 @@ public:
                   RESULT_INT64);
     log.AddResult("TotalMaxQueueSize", (int64_t)Total(ged_logs, "MaxQueueSize"),
                   RESULT_INT64);
+  }
+
+  void CombineGraphs(GSSEntry *g1, GSSEntry *g2, GSSEntry *combined) {
+    combined->CombineGraph(g1, g2);
   }
 };
 
@@ -154,7 +159,15 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(GSSEntry *query_, int tau_) {
   int num_filtered = 0, num_candidates = 0;
   for (int data_idx = 0; data_idx < data_graphs.size(); data_idx++) {
     GSSEntry *data = data_graphs[data_idx];
-    //            if (data->GetId() != query->GetId()) continue;
+    // if (data->GetId() != query->GetId())
+    //   continue;
+    GSSEntry *combined = new GSSEntry;
+    CombineGraphs(data, query, combined);
+    GWL *gwl = new GWL(combined);
+    gwl->GraphColoring(2, std::unordered_set<int>({3, 4, 11, 12}));
+#ifdef DEBUG
+    gwl->debug();
+#endif
     GEDSolver.InitializeSolver(query, data, this->tau);
     Timer filtering_timer;
     filtering_timer.Start();

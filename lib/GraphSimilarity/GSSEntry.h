@@ -19,23 +19,24 @@ class GSSEntry : public LabeledGraph {
   std::vector<int> branch_ids;
   std::vector<Branch> branches;
 
- public:
+public:
   // Works only for small graphs
   inline int GetEdgeLabel(int edge_id) const { return edge_label[edge_id]; }
   inline int GetEdgeLabel(int u, int v) const { return adj_matrix[u][v]; }
   inline int NumIncidentEdgesWithLabel(int v, int label) {
-    if (label >= num_edge_labels) return 0;
+    if (label >= num_edge_labels)
+      return 0;
     return num_incident_edge_by_label[v][label];
   }
-  inline std::vector<int>& GetIncidentEdges(int v) { return incidence_list[v]; }
-  inline std::vector<int>& GetVerticesByLabel(int label) {
+  inline std::vector<int> &GetIncidentEdges(int v) { return incidence_list[v]; }
+  inline std::vector<int> &GetVerticesByLabel(int label) {
     return vertices_by_label[label];
   }
-  inline std::vector<int>& GetEdgesByLabel(int label) {
+  inline std::vector<int> &GetEdgesByLabel(int label) {
     return edges_by_label[label];
   }
-  inline std::vector<int>& GetDegreeSequence() { return degree_sequence; }
-  const Branch& GetBranch(int v) { return branches[v]; }
+  inline std::vector<int> &GetDegreeSequence() { return degree_sequence; }
+  const Branch &GetBranch(int v) { return branches[v]; }
   void BuildDegreeSequence() {
     degree_sequence.resize(num_vertex);
     for (int i = 0; i < num_vertex; i++) {
@@ -45,10 +46,10 @@ class GSSEntry : public LabeledGraph {
               std::greater<int>());
   }
 
-  void LoadFromDatabase(int graph_id, std::vector<int>& vertices,
-                        std::vector<int>& vertex_labels,
-                        std::vector<std::pair<int, int>>& edges,
-                        std::vector<int>& edge_labels) {
+  void LoadFromDatabase(int graph_id, std::vector<int> &vertices,
+                        std::vector<int> &vertex_labels,
+                        std::vector<std::pair<int, int>> &edges,
+                        std::vector<int> &edge_labels) {
     id = graph_id;
     num_vertex = vertices.size();
     num_vertex_labels = 0;
@@ -69,7 +70,7 @@ class GSSEntry : public LabeledGraph {
     edge_list = edges;
     edge_label = edge_labels;
     for (int i = 0; i < edge_list.size(); i++) {
-      auto& [u, v] = edge_list[i];
+      auto &[u, v] = edge_list[i];
       num_edge_labels = std::max(num_edge_labels, edge_label[i] + 1);
       adj_matrix[u][v] = edge_label[i];
       adj_matrix[v][u] = edge_label[i];
@@ -93,7 +94,10 @@ class GSSEntry : public LabeledGraph {
     BuildDegreeSequence();
   };
 
-  void CombineGraph(GSSEntry* g1, GSSEntry* g2) {
+  void CombineGraph(GSSEntry *g1, GSSEntry *g2) {
+    combined_index = g1->GetNumVertices();
+    num_vertex_labels =
+        std::max(g1->GetNumVertexLabels(), g2->GetNumVertexLabels());
     num_vertex = g1->GetNumVertices() + g2->GetNumVertices();
     adj_matrix.resize(num_vertex, std::vector<int>(num_vertex, -1));
     num_edge = g1->GetNumEdges() + g2->GetNumEdges();
@@ -123,8 +127,8 @@ class GSSEntry : public LabeledGraph {
     }
   }
 
-  void BuildBranches(std::map<Branch, int>& seen_branch_ids,
-                     std::vector<Branch>& seen_branch_structures) {
+  void BuildBranches(std::map<Branch, int> &seen_branch_ids,
+                     std::vector<Branch> &seen_branch_structures) {
     branches.resize(num_vertex);
     branch_ids.resize(num_vertex);
     for (int i = 0; i < num_vertex; i++) {
@@ -149,7 +153,7 @@ class GSSEntry : public LabeledGraph {
   }
 
   const int GetBranchID(int v) const { return branch_ids[v]; }
-  std::vector<int>& GetBranchIDs() { return branch_ids; }
+  std::vector<int> &GetBranchIDs() { return branch_ids; }
 };
 
-}  // namespace GraphLib::GraphSimilarity
+} // namespace GraphLib::GraphSimilarity
