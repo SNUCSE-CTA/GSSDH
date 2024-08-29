@@ -100,11 +100,13 @@ void GWL::GraphColoring(const int iter,
       if (fixed_vertices.find(u) != fixed_vertices.end()) {
         continue;
       }
+      // Get the color of current vertex
+      const int curr_color = G->vertex_color[u];
 
       // Get the neighbors of the vertex
       std::vector<int> neighbors = G->GetNeighbors(u);
 
-#ifdef DEBUG
+#ifdef DEBUG_COLORING
       std::cout << "Vertex: " << u << ", label: " << G->GetVertexLabel(u)
                 << std::endl;
       std::cout << "Neighbors: ";
@@ -118,9 +120,10 @@ void GWL::GraphColoring(const int iter,
       std::map<int, int> color_frequency;
       for (int v : neighbors) {
         const int color = G->vertex_color[v];
-        auto it = handle_hash_map.find({color, G->GetEdgeLabel(u, v)});
+        const std::pair<int, int> handle = {color, G->GetEdgeLabel(u, v)};
+        auto it = handle_hash_map.find(handle);
         if (it == handle_hash_map.end()) {
-          handle_hash_map[{color, G->GetEdgeLabel(u, v)}] = handle_hash;
+          handle_hash_map[handle] = handle_hash;
           color_frequency[handle_hash]++;
           handle_hash++;
         } else {
@@ -129,9 +132,10 @@ void GWL::GraphColoring(const int iter,
       }
 
       // Get the color frequency of the vertex (l(u), -1) pair
-      auto handle_iter = handle_hash_map.find({G->vertex_color[u], -1});
+      const std::pair<int, int> handle = {curr_color, -1};
+      auto handle_iter = handle_hash_map.find(handle);
       if (handle_iter == handle_hash_map.end()) {
-        handle_hash_map[{G->vertex_color[u], -1}] = handle_hash;
+        handle_hash_map[handle] = handle_hash;
         color_frequency[handle_hash]++;
         handle_hash++;
       } else {
@@ -140,7 +144,6 @@ void GWL::GraphColoring(const int iter,
 
       // Find the color frequency in the map
       auto freq_iter = frequency_to_color_map.find(color_frequency);
-      int old_color = G->vertex_color[u];
 
       // If the color frequency is already in the map, assign the color to the
       // vertex. Otherwise, assign a new color to the vertex.
@@ -150,9 +153,9 @@ void GWL::GraphColoring(const int iter,
       } else {
         frequency_to_color_map[color_frequency] = next_color;
         temp_color[u] = next_color;
-        color_tree_map[old_color].push_back(next_color);
+        color_tree_map[curr_color].push_back(next_color);
         color_tree_map[next_color];
-        child_to_parent_map[next_color] = old_color;
+        child_to_parent_map[next_color] = curr_color;
         color_node_to_vertex[next_color];
         color_node_to_vertex[next_color].push_back(u);
         next_color++;

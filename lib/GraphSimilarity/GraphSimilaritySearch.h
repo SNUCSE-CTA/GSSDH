@@ -165,7 +165,7 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(GSSEntry *query_, int tau_) {
     CombineGraphs(data, query, combined);
     GWL *gwl = new GWL(combined);
     gwl->GraphColoring(2, std::unordered_set<int>({3, 4, 11, 12}));
-#ifdef DEBUG
+#ifdef DEBUG_COLORING
     gwl->debug();
 #endif
     GEDSolver.InitializeSolver(query, data, this->tau);
