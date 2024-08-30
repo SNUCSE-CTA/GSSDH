@@ -11,40 +11,41 @@ Timer timer;
 std::string data_root = "../data/GraphSimilaritySearch/";
 int tau = 3;
 std::vector<ResultLogger> logs;
-std::vector<std::string> log_entries = {
-        "Ans", "NumCandidates", "TotalFilteringTime", "TotalAStarTime", "TotalSearchSpace"
-};
+std::vector<std::string> log_entries = {"Ans", "NumCandidates",
+                                        "TotalFilteringTime", "TotalAStarTime",
+                                        "TotalSearchSpace"};
 
 int main(int argc, char *argv[]) {
-    std::string dataset = "AIDS";
-    std::string dataset_path = data_root + "AIDS.database";
-    std::string query_path = data_root + "AIDS.100query";
+  std::string dataset = "AIDS";
+  std::string dataset_path = data_root + "AIDS.database";
+  std::string query_path = data_root + "AIDS.100query";
 
-//    std::string dataset_path = data_root + "example.data";
-//    std::string query_path = data_root + "example.query";
-    for (int i = 1; i < argc; ++i) {
-        if (argv[i][0] == '-') {
-            switch (argv[i][1]) {
-                case 'd':
-                    dataset_path = argv[i + 1];
-                break;
-                case 'q':
-                    query_path = argv[i + 1];
-                break;
-                case 't':
-                    tau = atoi(argv[i + 1]);
-                break;
-                default:break;
-            }
-        }
+  //    std::string dataset_path = data_root + "example.data";
+  //    std::string query_path = data_root + "example.query";
+  for (int i = 1; i < argc; ++i) {
+    if (argv[i][0] == '-') {
+      switch (argv[i][1]) {
+      case 'd':
+        dataset_path = argv[i + 1];
+        break;
+      case 'q':
+        query_path = argv[i + 1];
+        break;
+      case 't':
+        tau = atoi(argv[i + 1]);
+        break;
+      default:
+        break;
+      }
     }
+  }
 
-    GraphSimilaritySearch DB;
-    DB.LoadGraphDatabase(dataset_path, -1);
-//    auto data = DB.GetData();
-    DB.LoadGraphDatabase(query_path, 1);
-    DB.BuildBranches();
-    DB.ProcessSimilaritySearch(tau);
-    DB.GetLog().PrintResults();
-    return 0;
+  GraphSimilaritySearch DB;
+  DB.LoadGraphDatabase(dataset_path, -1);
+  //    auto data = DB.GetData();
+  DB.LoadGraphDatabase(query_path, 1);
+  DB.BuildBranches();
+  DB.ProcessSimilaritySearch(tau);
+  DB.GetLog().PrintResults();
+  return 0;
 }

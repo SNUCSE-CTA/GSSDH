@@ -169,42 +169,38 @@ class AStarBMa : public GraphEditDistanceSolver {
 
 
     int lb = state->cost + ((hungarian.GetTotalCost() + 1) / 2);
-    //            int u_idx = 0, best_weight = 9999;
-    //            int disconnected_best = -1, disconnected_best_weight = 9999;
-    //            for (int u = 0; u < G1->GetNumVertices(); u++) {
-    //                bool is_connected = false;
-    //                for (int v : G1->GetNeighbors(u)) {
-    //                    if (state->mapping[v] != -1) {
-    //                        is_connected = true;
-    //                        break;
-    //                    }
-    //                }
-    //                if (state->mapping[u] == -1) {
-    //                    if (is_connected) {
-    //                        if (hungarian.AssignedWeight(u_idx) < best_weight)
-    //                        {
-    //                            state->next_mapping_order = u;
-    //                            best_weight = hungarian.AssignedWeight(u_idx);
-    //                            if (best_weight < disconnected_best_weight) {
-    //                                disconnected_best = u;
-    //                                disconnected_best_weight = best_weight;
-    //                            }
-    //                        }
-    //                    }
-    //                    else {
-    //                        if (hungarian.AssignedWeight(u_idx) <
-    //                        disconnected_best_weight) {
-    //                            disconnected_best = u;
-    //                            disconnected_best_weight =
-    //                            hungarian.AssignedWeight(u_idx);
-    //                        }
-    //                    }
-    //                    u_idx++;
-    //                }
-    //            }
-    //            if (state->next_mapping_order == -1) {
-    //                state->next_mapping_order = disconnected_best;
-    //            }
+    // int u_idx = 0, best_weight = 9999;
+    // int disconnected_best = -1, disconnected_best_weight = 9999;
+    // for (int u = 0; u < G1->GetNumVertices(); u++) {
+    //   bool is_connected = false;
+    //   for (int v : G1->GetNeighbors(u)) {
+    //     if (state->mapping[v] != -1) {
+    //       is_connected = true;
+    //       break;
+    //     }
+    //   }
+    //   if (state->mapping[u] == -1) {
+    //     if (is_connected) {
+    //       if (hungarian.AssignedWeight(u_idx) < best_weight) {
+    //         state->next_mapping_order = u;
+    //         best_weight = hungarian.AssignedWeight(u_idx);
+    //         if (best_weight < disconnected_best_weight) {
+    //           disconnected_best = u;
+    //           disconnected_best_weight = best_weight;
+    //         }
+    //       }
+    //     } else {
+    //       if (hungarian.AssignedWeight(u_idx) < disconnected_best_weight) {
+    //         disconnected_best = u;
+    //         disconnected_best_weight = hungarian.AssignedWeight(u_idx);
+    //       }
+    //     }
+    //     u_idx++;
+    //   }
+    // }
+    // if (state->next_mapping_order == -1) {
+    //   state->next_mapping_order = disconnected_best;
+    // }
     return {lb, ub};
   }
   double Gethgtime()const {return hungarian_time; }
