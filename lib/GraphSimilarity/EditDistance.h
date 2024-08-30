@@ -253,6 +253,8 @@ class GraphEditDistanceSolver {
     }
   }
 
+
+
   int ComputeDistance(std::vector<int> &mapping, bool verbose = false) {
     std::vector<int> inverse_mapping(G2->GetNumVertices(), -1);
     for (int i = 0; i < G1->GetNumVertices(); i++) {

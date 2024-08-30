@@ -6,6 +6,7 @@
 
 #include "Base/BasicAlgorithms.h"
 #include "Base/Hungarian.h"
+// #include "Base/DynamicHungarian.h"
 #include "Branch.h"
 #include "DataStructure/LabeledGraph.h"
 #include "DifferenceVector.h"
@@ -16,6 +17,7 @@
 #include "GraphSimilarity/PartitionFilter.h"
 // #include "GraphSimilarity/GraphEditDistance/AStarMixed.h"
 // #include "GraphSimilarity/GraphEditDistance/OurGED.h"
+// #include "GraphSimilarity/GraphEditDistance/AStarDH.h"
 
 namespace GraphLib::GraphSimilarity {
 class GraphSimilaritySearch {
@@ -31,7 +33,9 @@ class GraphSimilaritySearch {
   ResultLogger log;
   Hungarian *hungariansolver = nullptr;
 
+  // AStarDH GEDSolver;
   // AStarBMa GEDSolver;
+  double total_hg_time = 0.0, total_bd_time = 0.0;
   AStarLSa GEDSolver;
 
   int num_answer = 0;
@@ -71,6 +75,9 @@ class GraphSimilaritySearch {
                   RESULT_INT64);
     log.AddResult("TotalMaxQueueSize", (int64_t)Total(ged_logs, "MaxQueueSize"),
                   RESULT_INT64);
+    /*BMa time*/
+    log.AddResult("HUNGARIAN_TIME", total_hg_time, RESULT_DOUBLE_FIXED);
+    log.AddResult("BranchDistance_TIME", total_bd_time, RESULT_DOUBLE_FIXED);
   }
 };
 
@@ -169,6 +176,10 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(GSSEntry *query_, int tau_) {
       if (ged != -1) {
         num_answer++;
       }
+      /*AStarBMa time*/
+      // total_hg_time += GEDSolver.Gethgtime();
+      // total_bd_time += GEDSolver.Getbdtime();
+
       verification_timer.Stop();
       total_verifying_time += verification_timer.GetTime();
     } else
