@@ -124,6 +124,11 @@ class Hungarian {
     }
   }
 
+  // void SolveDynamic(std::vector<tuple<int,int,int>> ){
+  //   InitializeVariables();
+
+  // }
+
   void Print() {
     fprintf(stderr, "Invoked Hungarian::Print() N = %d\n", N);
     for (int i = 0; i < N; i++) {

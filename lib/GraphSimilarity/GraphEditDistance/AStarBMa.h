@@ -1,6 +1,7 @@
 #pragma once
 #include "Base/Hungarian.h"
 #include "GraphSimilarity/EditDistance.h"
+#include "Base/Timer.h"
 
 namespace GraphLib::GraphSimilarity {
 struct BMaState : State {
@@ -12,8 +13,10 @@ class AStarBMa : public GraphEditDistanceSolver {
   const bool DEBUG = false;
   std::priority_queue<BMaState*, std::vector<BMaState*>, StateComparator> queue;
   std::map<int, int> num_hungarian;
+  double hungarian_time = 0.0, branchdistance_time = 0.0;
 
  public:
+ 
   void ExtendState(BMaState* state) {
     if (state->cost >= current_best) return;
     int depth = state->depth + 1;
@@ -29,6 +32,8 @@ class AStarBMa : public GraphEditDistanceSolver {
       }
       child_state->mapping[u] = v;
       child_state->inverse_mapping[v] = u;
+      child_state->depth = depth;
+
       auto [lb, ub] = BMaLowerBound(child_state);
       child_state->lower_bound = lb;
       child_state->ub = ub;
@@ -46,6 +51,10 @@ class AStarBMa : public GraphEditDistanceSolver {
       if (threshold > 0) {
         if (child_state->lower_bound > threshold) continue;
       }
+
+
+
+
       if (DEBUG) {
         fprintf(stderr, "Parent %d pushes state %d with bound %d\n", state->id,
                 child_state->id, child_state->lower_bound);
@@ -60,6 +69,10 @@ class AStarBMa : public GraphEditDistanceSolver {
     BMaState* initial_state = new BMaState(NULL);
     initial_state->cost = 0;
     initial_state->depth = -1;
+
+    hungarian_time = 0.0;
+    branchdistance_time = 0.0;
+
     auto [lb, ub] = BMaLowerBound(initial_state);
     initial_state->lower_bound = lb;
     queue.push(initial_state);
@@ -116,10 +129,27 @@ class AStarBMa : public GraphEditDistanceSolver {
     std::vector<int> rem_left, rem_right;
     std::vector<std::vector<int>> branch_distance_matrix(
         remaining, std::vector<int>(remaining, 0));
+
+    Timer bd_timer;
+    bd_timer.Start();
     ComputeBranchDistanceMatrix(state, branch_distance_matrix, rem_left,
                                 rem_right);
+
+    
+
+    bd_timer.Stop();
+    branchdistance_time += bd_timer.GetTime();
     Hungarian hungarian(branch_distance_matrix);
+  
+
+
+    Timer hg_timer;
+    hg_timer.Start();
     hungarian.Solve();
+    hg_timer.Stop();
+    hungarian_time += hg_timer.GetTime();
+
+
     if (DEBUG) hungarian.Print();
     auto& assignment = hungarian.GetAssignment();
     std::vector<int> hungarian_mapping(G1->GetNumVertices(), -1);
@@ -134,7 +164,10 @@ class AStarBMa : public GraphEditDistanceSolver {
       hungarian_mapping[u] = v;
       hungarian_inverse_mapping[v] = u;
     }
+
     int ub = ComputeDistance(hungarian_mapping, hungarian_inverse_mapping);
+
+
     int lb = state->cost + ((hungarian.GetTotalCost() + 1) / 2);
     // int u_idx = 0, best_weight = 9999;
     // int disconnected_best = -1, disconnected_best_weight = 9999;
@@ -170,5 +203,7 @@ class AStarBMa : public GraphEditDistanceSolver {
     // }
     return {lb, ub};
   }
+  double Gethgtime()const {return hungarian_time; }
+  double Getbdtime()const {return branchdistance_time; }
 };
 }  // namespace GraphLib::GraphSimilarity

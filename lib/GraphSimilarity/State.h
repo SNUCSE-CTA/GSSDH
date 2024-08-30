@@ -10,6 +10,7 @@ struct State {
       cross_edge_label_bound = 0;
   int* mapping;
   int* inverse_mapping;
+
   static int global_state_id;
   State(State* p, int c = -1, int d = -1) {
     id = global_state_id++;
@@ -63,7 +64,6 @@ struct State {
     // Free existing memory
     delete[] mapping;
     delete[] inverse_mapping;
-
     // Copy data
     id = other.id;
     parent = other.parent;
