@@ -4,20 +4,20 @@
  * graphs.
  */
 
-#include "Base/BasicAlgorithms.h"
-#include "Base/Hungarian.h"
-// #include "Base/DynamicHungarian.h"
+// #include "Base/BasicAlgorithms.h"
+// #include "Base/Hungarian.h"
+#include "Base/DynamicHungarian.h"
 #include "Branch.h"
 #include "DataStructure/LabeledGraph.h"
 #include "DifferenceVector.h"
 #include "GraphSimilarity/EditDistance.h"
 #include "GraphSimilarity/GSSEntry.h"
 // #include "GraphSimilarity/GraphEditDistance/AStarBMa.h"
-#include "GraphSimilarity/GraphEditDistance/AStarLSa.h"
+// #include "GraphSimilarity/GraphEditDistance/AStarLSa.h"
 #include "GraphSimilarity/PartitionFilter.h"
 // #include "GraphSimilarity/GraphEditDistance/AStarMixed.h"
 // #include "GraphSimilarity/GraphEditDistance/OurGED.h"
-// #include "GraphSimilarity/GraphEditDistance/AStarDH.h"
+#include "GraphSimilarity/GraphEditDistance/AStarDH.h"
 
 namespace GraphLib::GraphSimilarity {
 class GraphSimilaritySearch {
@@ -33,10 +33,10 @@ class GraphSimilaritySearch {
   ResultLogger log;
   Hungarian *hungariansolver = nullptr;
 
-  // AStarDH GEDSolver;
+  AStarDH GEDSolver;
   // AStarBMa GEDSolver;
   double total_hg_time = 0.0, total_bd_time = 0.0;
-  AStarLSa GEDSolver;
+  // AStarLSa GEDSolver;
 
   int num_answer = 0;
   std::vector<ResultLogger> ged_logs;
@@ -64,6 +64,7 @@ class GraphSimilaritySearch {
   void ProcessSimilaritySearch(int tau_) {
     this->tau = tau_;
     for (auto &q : query_graphs) {
+      // std::cout << "query idx : " << q->GetId() << "\n";
       RetrieveSimilarGraphs(q, tau);
     }
     log.AddResult("NUM_CANDIDATES", total_candidates, RESULT_INT);
@@ -161,7 +162,7 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(GSSEntry *query_, int tau_) {
   int num_filtered = 0, num_candidates = 0;
   for (int data_idx = 0; data_idx < data_graphs.size(); data_idx++) {
     GSSEntry *data = data_graphs[data_idx];
-    //            if (data->GetId() != query->GetId()) continue;
+              //  if (data->GetId() != query->GetId()) continue;
     GEDSolver.InitializeSolver(query, data, this->tau);
     Timer filtering_timer;
     filtering_timer.Start();
@@ -175,6 +176,7 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(GSSEntry *query_, int tau_) {
       int ged = GEDSolver.GED();
       if (ged != -1) {
         num_answer++;
+        // std::cout << data_idx << "\n";
       }
       /*AStarBMa time*/
       // total_hg_time += GEDSolver.Gethgtime();
@@ -189,8 +191,8 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(GSSEntry *query_, int tau_) {
   }
   total_candidates += num_candidates;
   total_filtered += num_filtered;
-  fprintf(stderr, "Filtered %d out of %lu graphs\n", num_filtered,
-          data_graphs.size());
+  // fprintf(stderr, "Filtered %d out of %lu graphs\n", num_filtered,
+  //         data_graphs.size());
 }
 
 int GraphSimilaritySearch::BranchBound(int data_idx) {

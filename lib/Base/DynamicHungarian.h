@@ -119,42 +119,51 @@ class Hungarian {
     }
     total_cost = 0;
     for (int i = 0; i < N; i++) {
+      // std::cout <<i << " " << assignment[i]  <<  " " <<cost_matrix[i][assignment[i]] <<"\n";
       total_cost += cost_matrix[i][assignment[i]];
     }
   }
 
-void SolvePartial(int vertex){
+void SolvePartial(int G1size, int *statemapping){
   // std::cout << vertex << "\n";
-  while(true){
+  InitializeVariables();
+  for(int i = 0 ; i < N;i++){
+    if(assignment[i] != -1) continue;
+    while(true){
       std::fill(left_visited.begin(), left_visited.end(), 0);
       std::fill(right_visited.begin(), right_visited.end(), 0);
-      if (FindAugmentingPath(vertex)) break;
+      if (FindAugmentingPath(i)) break;
       RecalculatePotential();
+    }
   }
+  total_cost = 0;
+    for (int i = 0; i < N; i++) {
+        if(i < G1size && statemapping[i] != -1) continue;
+        // std::cout << "u : "<< cost_matrix[i][assignment[i]] << " ";
+        total_cost += cost_matrix[i][assignment[i]];
+    }
+    // std::cout << "\n";
 }
 
-void TotalCost(int*isMapping){
-  total_cost = 0;
+void Match(int u, int v){ //state->matrix //need to optimze
+  for(int j = 0 ; j < N; j++){
+    if(j != v){
+      ChangeCost(u, j, INF);
+    }
+  }
   for(int i = 0 ; i < N; i++){
-    if(isMapping[i] == -1){
-    total_cost += cost_matrix[i][assignment[i]];
+    if(i != u){
+      ChangeCost(i, v, INF);
     }
   }
 }
-int ChangeCost(int i, int j, int newCost){
+void ChangeCost(int i, int j, int newCost){
     int vertex = i;
     int oldCost = cost_matrix[i][j];
     cost_matrix[i][j] = newCost;
     if(newCost > oldCost && assignment[i] == j){
         assignment[i] = -1;
         inverse_assignment[j] = -1;
-      //   while (true) {
-      //       std::fill(left_visited.begin(), left_visited.end(), 0);
-      //       std::fill(right_visited.begin(), right_visited.end(), 0);
-      //       if (FindAugmentingPath(vertex)) break;
-      //       RecalculatePotential();
-      // }
-        return vertex;
     }
     else if(newCost < oldCost && alpha[i] + beta[j] > newCost){
         alpha[i] = INF;
@@ -164,48 +173,11 @@ int ChangeCost(int i, int j, int newCost){
         if(assignment[i] != j){
             inverse_assignment[assignment[i]] = -1;
             assignment[i] = -1;
-        // while (true) {
-        //     std::fill(left_visited.begin(), left_visited.end(), 0);
-        //     std::fill(right_visited.begin(), right_visited.end(), 0);
-        //     if (FindAugmentingPath(vertex)) break;
-        //     RecalculatePotential();
-        // }
-        return vertex;
         }
-        else return -1;
-    }
-    else{
-      return -1;
     }
 }
 
-int Match(int u, int v, std::vector<std::vector<int>>& matrix){ //state->matrix
-
-  int u_prime = inverse_assignment[v];
-  int v_prime = assignment[u];
-
-  if(u_prime != u){
-    inverse_assignment[v_prime] = -1;
-    assignment[u_prime] = -1;
-  }
-    assignment[u] = v;
-    inverse_assignment[v] = u;
-  for(int j = 0 ; j < N; j++){
-    if(j != v){
-      cost_matrix[u][j] = INF;
-      matrix[u][j] = INF;
-    }
-  }
-  for(int i = 0 ; i < N; i++){
-    if(i != u){
-      cost_matrix[i][v] = INF;
-      matrix[i][v] = INF;
-    }
-  }
-  return u_prime;
-}
-
-void ChangeRow(int i, std::vector<int>& newRow){
+  void ChangeRow(int i, std::vector<int>& newRow){
     int vertex = i;
     inverse_assignment[assignment[i]] = -1;
     assignment[i] = -1;
@@ -224,7 +196,7 @@ void ChangeRow(int i, std::vector<int>& newRow){
     }
 }
 
-void ChangeCol(int j, std::vector<int>& newCol){
+  void ChangeCol(int j, std::vector<int>& newCol){
     int vertex = inverse_assignment[j];
     assignment[inverse_assignment[j]] = -1;
     inverse_assignment[j] = -1;
@@ -243,11 +215,10 @@ void ChangeCol(int j, std::vector<int>& newCol){
     }
   }
 
-  void CopyParent(std::vector<int>& parent_assignment){
-    assignment = parent_assignment;
-    inverse_assignment.resize(parent_assignment.size(), -1);
-    for (int i = 0; i < assignment.size(); i++) {
-        inverse_assignment[assignment[i]] = i;
+  void CopyParentAssignment(std::vector<int>& parent_assignment, std::vector<int>& rem_left){
+    for(int u_idx = 0 ; u_idx < rem_left.size(); u_idx++){
+      int u = rem_left[u_idx];
+      int v = parent_assignment[u];
     }
   }
 
@@ -266,6 +237,7 @@ void ChangeCol(int j, std::vector<int>& newCol){
 
   std::vector<int>& GetAssignment() { return assignment; }
 
+  std::vector<std::vector<int>>& GetMatrix(){return cost_matrix; }
   int GetTotalCost() { return total_cost; }
 
   int AssignedWeight(int i) { return cost_matrix[i][assignment[i]]; }

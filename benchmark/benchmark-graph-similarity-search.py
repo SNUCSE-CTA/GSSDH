@@ -52,7 +52,9 @@ if __name__ == "__main__":
     currentdate = get_experiment_date().replace("-", "")
     data_path = "../data/GraphSimilaritySearch/AIDS.database"
     query_path = "../data/GraphSimilaritySearch/AIDS.100query"
-    workloads = [(data_path, query_path, tau) for tau in [7, 6, 5, 4, 3, 2, 1, 0]]
+    # data_path = "../data/GraphSimilaritySearch/example.data"
+    # query_path = "../data/GraphSimilaritySearch/example.query"
+    workloads = [(data_path, query_path, tau) for tau in [2]]
     P = multiprocessing.Pool(processes=3)
     results = []
     for result in P.imap_unordered(run, workloads):
