@@ -9,9 +9,11 @@
 namespace GraphLib {
 // Vertex and edge labeled graph
 class LabeledGraph : public Graph {
- public:
+public:
   int num_vertex_labels = 0, num_edge_labels = 0;
+  int combined_index = 0;
   std::vector<int> vertex_label, edge_label;
+  std::vector<int> vertex_color;
   std::unordered_map<int, int> vertex_label_frequency, edge_label_frequency;
 
   LabeledGraph() {}
@@ -41,6 +43,9 @@ class LabeledGraph : public Graph {
     return edge_label_frequency.find(l) != edge_label_frequency.end();
   }
   void CombineGraph(LabeledGraph *g1, LabeledGraph *g2) {
+    combined_index = g1->GetNumVertices();
+    num_vertex_labels =
+        std::max(g1->GetNumVertexLabels(), g2->GetNumVertexLabels());
     num_vertex = g1->GetNumVertices() + g2->GetNumVertices();
     num_edge = g1->GetNumEdges() + g2->GetNumEdges();
     adj_list.resize(num_vertex);
@@ -167,7 +172,7 @@ void LabeledGraph::LoadCFLGraph(const std::string &filename) {
 }
 
 void LabeledGraph::WriteToFile(const std::string &filename) {
-  std::filesystem::path filepath = filename;
+  fs::path filepath = filename;
   create_directories(filepath.parent_path());
   std::ofstream out(filename);
   out << "t " << GetNumVertices() << ' ' << GetNumEdges() / 2 << '\n';
@@ -184,4 +189,4 @@ void LabeledGraph::WriteToFile(const std::string &filename) {
   }
 }
 
-}  // namespace GraphLib
+} // namespace GraphLib

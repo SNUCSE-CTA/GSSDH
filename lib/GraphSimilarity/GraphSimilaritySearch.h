@@ -11,7 +11,8 @@
 #include "DataStructure/LabeledGraph.h"
 #include "DifferenceVector.h"
 #include "GraphSimilarity/EditDistance.h"
-#include "GraphSimilarity/GSSEntry.h"
+#include "GraphSimilarity/GraphColoring/GWL.h"
+// #include "GraphSimilarity/GSSEntry.h"
 // #include "GraphSimilarity/GraphEditDistance/AStarBMa.h"
 // #include "GraphSimilarity/GraphEditDistance/AStarLSa.h"
 #include "GraphSimilarity/PartitionFilter.h"
@@ -41,7 +42,7 @@ class GraphSimilaritySearch {
   int num_answer = 0;
   std::vector<ResultLogger> ged_logs;
 
- public:
+public:
   int total_candidates = 0, total_filtered = 0;
   ResultLogger GetLog() { return log; }
   void LoadGraphDatabase(std::string &filename, int which);
@@ -79,6 +80,10 @@ class GraphSimilaritySearch {
     /*BMa time*/
     log.AddResult("HUNGARIAN_TIME", total_hg_time, RESULT_DOUBLE_FIXED);
     log.AddResult("BranchDistance_TIME", total_bd_time, RESULT_DOUBLE_FIXED);
+  }
+
+  void CombineGraphs(GSSEntry *g1, GSSEntry *g2, GSSEntry *combined) {
+    combined->CombineGraph(g1, g2);
   }
 };
 
@@ -162,7 +167,8 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(GSSEntry *query_, int tau_) {
   int num_filtered = 0, num_candidates = 0;
   for (int data_idx = 0; data_idx < data_graphs.size(); data_idx++) {
     GSSEntry *data = data_graphs[data_idx];
-              //  if (data->GetId() != query->GetId()) continue;
+    // if (data->GetId() != query->GetId())
+    //   continue;
     GEDSolver.InitializeSolver(query, data, this->tau);
     Timer filtering_timer;
     filtering_timer.Start();
@@ -246,4 +252,4 @@ int GraphSimilaritySearch::PartitionBound(int data_idx) {
   PartitionFilter partition_filter(query, data);
   return partition_filter.GetPartitionBound();
 }
-}  // namespace GraphLib::GraphSimilarity
+} // namespace GraphLib::GraphSimilarity

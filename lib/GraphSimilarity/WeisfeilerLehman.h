@@ -23,7 +23,7 @@
 //       if (ignore[i] != ignore[j]) return ignore[i] < ignore[j];
 //       int di = degree[i], dj = degree[j];
 //       int li = G->GetVertexLabel(i), lj = G->GetVertexLabel(j);
-//       //            return (di < dj) or (di == dj && li < lj);
+//       // return (di < dj) or (di == dj && li < lj);
 //       return (li < lj);
 //     });
 //     int current_color = num_fixed_color + 1;
@@ -192,13 +192,13 @@
 //           color_partition[c].pop_front();
 //           color_partition[c].pop_back();
 //           mapping[l] = r - VL;
-//           //   mapped_idx++;
-//           //   for (int lnbr : G->GetNeighbors(l)) {
-//           //     mapped_neighbors[lnbr].push_back(mapped_idx);
-//           //   }
-//           //   for (int rnbr : G->GetNeighbors(r)) {
-//           //     mapped_neighbors[rnbr].push_back(mapped_idx);
-//           //   }
+//           // mapped_idx++;
+//           // for (int lnbr : G->GetNeighbors(l)) {
+//           //   mapped_neighbors[lnbr].push_back(mapped_idx);
+//           // }
+//           // for (int rnbr : G->GetNeighbors(r)) {
+//           //   mapped_neighbors[rnbr].push_back(mapped_idx);
+//           // }
 //           if (DEBUG) printf("!!Map %d to %d (%d)\n", l, r, r - VL);
 //           num_left[c]--;
 //           num_right[c]--;

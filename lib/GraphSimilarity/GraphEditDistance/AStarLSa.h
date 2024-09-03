@@ -5,9 +5,10 @@ DEBUG LSadebugger(2);
 
 namespace GraphLib::GraphSimilarity {
 class AStarLSa : public GraphEditDistanceSolver {
- public:
-  void ExtendState(State* state) {
-    if (state->cost >= current_best) return;
+public:
+  void ExtendState(State *state) {
+    if (state->cost >= current_best)
+      return;
     int depth = state->depth + 1;
     int u = matching_order[depth];
 
@@ -51,7 +52,8 @@ class AStarLSa : public GraphEditDistanceSolver {
     }
 
     for (int v = 0; v < G2->GetNumVertices(); v++) {
-      if (state->inverse_mapping[v] != -1) continue;
+      if (state->inverse_mapping[v] != -1)
+        continue;
 
       int child_cost = GetChildEditCost(state, u, v);
       int vertex_lower_bound = state->vertex_label_bound;
@@ -67,51 +69,48 @@ class AStarLSa : public GraphEditDistanceSolver {
       // Update Inner-edge-label-based Lower Bound
       for (int uprime : G1->GetNeighbors(u)) {
         int el = G1->GetEdgeLabel(u, uprime);
-        //                if (verbosity) printf("Consider %d (label =
-        //                %d)\n",uprime, el);
+        // if (verbosity) printf("Consider %d (label = %d)\n ", uprime, el);
         if (state->mapping[uprime] == -1) {
-          //                    inner_edge_lower_bound +=
-          //                    flip(unmapped_inner_edge_labels, el, -1);
-          //                    cross_edge_lower_bound +=
-          //                    flip(unmapped_cross_edge_labels[u], el, +1);
+          // inner_edge_lower_bound += flip(unmapped_inner_edge_labels, el, -1);
+          // cross_edge_lower_bound += flip(unmapped_cross_edge_labels[u], el,
+          // +1);
           unmapped_inner_edge_labels.update(el, -1);
           unmapped_cross_edge_labels[u].update(el, +1);
         } else {
           // uPrime is matched: anchored on uprime ->removed
           unmapped_cross_edge_labels[uprime].update(el, -1);
-          //                    cross_edge_lower_bound +=
-          //                    flip(unmapped_cross_edge_labels[uprime], el,
-          //                    -1);
+          // cross_edge_lower_bound +=
+          //     flip(unmapped_cross_edge_labels[uprime], el, -1);
         }
-        //                if (verbosity) printf("Inner is %d, Cross is
-        //                %d\n",inner_edge_lower_bound, cross_edge_lower_bound);
+        // if (verbosity)
+        //   printf("Inner is %d, Cross is %d\n", inner_edge_lower_bound,
+        //          cross_edge_lower_bound);
       }
       for (int vprime : G2->GetNeighbors(v)) {
         int el = G2->GetEdgeLabel(v, vprime);
         int fvprime = state->inverse_mapping[vprime];
-        //                if (verbosity) printf("Consider (%d-%d) G2 (label =
-        //                %d)\n",v,vprime,el);
+        // if (verbosity)
+        //   printf("Consider (%d-%d) G2 (label = %d)\n", v, vprime, el);
         if (fvprime == -1) {
           unmapped_inner_edge_labels.update(el, +1);
           unmapped_cross_edge_labels[u].update(el, -1);
-          //                    inner_edge_lower_bound +=
-          //                    flip(unmapped_inner_edge_labels, el, +1);
-          //                    cross_edge_lower_bound +=
-          //                    flip(unmapped_cross_edge_labels[u], el, -1);
+          // inner_edge_lower_bound += flip(unmapped_inner_edge_labels, el, +1);
+          // cross_edge_lower_bound += flip(unmapped_cross_edge_labels[u], el,
+          // -1);
         } else {
           // uPrime is matched: anchored on uprime ->removed
           unmapped_cross_edge_labels[fvprime].update(el, +1);
-          //                    cross_edge_lower_bound +=
-          //                    flip(unmapped_cross_edge_labels[fvprime], el,
-          //                    +1);
+          // cross_edge_lower_bound +=
+          //     flip(unmapped_cross_edge_labels[fvprime], el, +1);
         }
-        //                if (verbosity) printf("Inner is %d, Cross is
-        //                %d\n",inner_edge_lower_bound, cross_edge_lower_bound);
+        // if (verbosity)
+        //   printf("Inner is %d, Cross is %d\n", inner_edge_lower_bound,
+        //          cross_edge_lower_bound);
       }
       vertex_lower_bound = unmapped_vertex_labels.GetDifference();
       inner_edge_lower_bound = unmapped_inner_edge_labels.GetDifference();
       cross_edge_lower_bound = 0;
-      for (auto& it : unmapped_cross_edge_labels) {
+      for (auto &it : unmapped_cross_edge_labels) {
         cross_edge_lower_bound += it.GetDifference();
       }
       int lb =
@@ -125,12 +124,11 @@ class AStarLSa : public GraphEditDistanceSolver {
         if (state->mapping[uprime] == -1) {
           unmapped_inner_edge_labels.update(el, +1);
           unmapped_cross_edge_labels[u].update(el, -1);
-          //                    flip(unmapped_inner_edge_labels, el, +1);
-          //                    flip(unmapped_cross_edge_labels[u], el, -1);
+          // flip(unmapped_inner_edge_labels, el, +1);
+          // flip(unmapped_cross_edge_labels[u], el, -1);
         } else {
           unmapped_cross_edge_labels[uprime].update(el, +1);
-          //                    flip(unmapped_cross_edge_labels[uprime], el,
-          //                    +1);
+          // flip(unmapped_cross_edge_labels[uprime], el, +1);
         }
       }
       for (int vprime : G2->GetNeighbors(v)) {
@@ -145,18 +143,24 @@ class AStarLSa : public GraphEditDistanceSolver {
         }
       }
       // If decided to proceed with this...
-      if (child_cost + lb >= current_best) continue;
+      if (child_cost + lb >= current_best)
+        continue;
       if (threshold > 0) {
-        if (child_cost + lb > threshold) continue;
+        if (child_cost + lb > threshold)
+          continue;
       }
-      State* child_state = new State(state);
-      //            printf("State [%p] Check Depth %d [Parent %p]! matching
-      //            (%d(%d), %d(%d)) gives lb = %d, cost = %d (curbest = %d)\n",
-      //            child_state, depth, state, u, u_label, v, v_label,
-      //            lb+child_cost, child_cost, current_best); printf("  LB
-      //            Breakdown: VLabel %d, InnerEdge %d, CrossEdge %d\n\n",
-      //            vertex_lower_bound, inner_edge_lower_bound,
-      //            cross_edge_lower_bound); if (depth == 2) exit(1);
+      State *child_state = new State(state);
+      // printf(
+      //     "State [%p] Check Depth %d [Parent %p]! matching (% d(% d), % d(% "
+      //     "d)) gives lb = % d, cost = % d(curbest = % d)\n ",
+      //     child_state, depth, state, u, u_label, v, v_label, lb + child_cost,
+      //     child_cost, current_best);
+      // printf("  LB Breakdown : VLabel % d, InnerEdge % d, CrossEdge % d\n\n
+      // ",
+      //        vertex_lower_bound, inner_edge_lower_bound,
+      //        cross_edge_lower_bound);
+      // if (depth == 2)
+      //   exit(1);
       child_state->cost = child_cost;
       child_state->vertex_label_bound = vertex_lower_bound;
       child_state->inner_edge_label_bound = inner_edge_lower_bound;
@@ -172,15 +176,15 @@ class AStarLSa : public GraphEditDistanceSolver {
                sizeof(int) * NumG1Vertices);
         continue;
       }
-      //                fprintf(stdout,"Push state %d with bound %d\n",
-      //                child_state->id, child_state->lower_bound);
+      // fprintf(stdout, "Push state %d with bound %d\n", child_state->id,
+      //         child_state->lower_bound);
       queue.push(child_state);
     }
   }
 
   int GED() {
     PrepareGED();
-    State* initial_state = new State(NULL);
+    State *initial_state = new State(NULL);
     initial_state->cost = 0;
     initial_state->vertex_label_bound = 0;
     initial_state->vertex_label_bound = vlabel_diff->GetDifference();
@@ -190,7 +194,7 @@ class AStarLSa : public GraphEditDistanceSolver {
     queue.push(initial_state);
     int64_t max_qsize = 1;
     while (!queue.empty()) {
-      State* current_state = queue.top();
+      State *current_state = queue.top();
       num_nodes++;
       if (num_nodes % LOG_EVERY == 0) {
         fprintf(stderr,
@@ -201,19 +205,19 @@ class AStarLSa : public GraphEditDistanceSolver {
       }
       queue.pop();
       if (current_state->lower_bound >= current_best) {
-        queue =
-            std::priority_queue<State*, std::vector<State*>, StateComparator>();
+        queue = std::priority_queue<State *, std::vector<State *>,
+                                    StateComparator>();
         break;
       }
       if (threshold >= 0) {
         if (current_best < threshold) {
-          queue = std::priority_queue<State*, std::vector<State*>,
+          queue = std::priority_queue<State *, std::vector<State *>,
                                       StateComparator>();
           break;
         }
         if (current_state->lower_bound > threshold) {
           current_best = -1;
-          queue = std::priority_queue<State*, std::vector<State*>,
+          queue = std::priority_queue<State *, std::vector<State *>,
                                       StateComparator>();
           break;
         }
@@ -232,4 +236,4 @@ class AStarLSa : public GraphEditDistanceSolver {
     return current_best;
   }
 };
-}  // namespace GraphLib::GraphSimilarity
+} // namespace GraphLib::GraphSimilarity
