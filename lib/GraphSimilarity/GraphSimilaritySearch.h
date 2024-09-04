@@ -179,8 +179,8 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(GSSEntry *query_, int tau_) {
         // std::cout << data_idx << "\n";
       }
       /*AStarBMa time*/
-      // total_hg_time += GEDSolver.Gethgtime();
-      // total_bd_time += GEDSolver.Getbdtime();
+      total_hg_time += GEDSolver.Gethgtime();
+      total_bd_time += GEDSolver.Getbdtime();
 
       verification_timer.Stop();
       total_verifying_time += verification_timer.GetTime();
