@@ -23,6 +23,8 @@ class AStarDH : public GraphEditDistanceSolver {
   std::map<int, int> num_hungarian;
   double hungarian_time = 0.0, branchdistance_time = 0.0;
 
+  double time1 = 0.0, time2 = 0.0;
+
 /*from hungarian*/
   const int INF = 1e9;
   std::vector<int> assignment, inverse_assignment;
@@ -57,22 +59,37 @@ void InitializeVariables(std::vector<std::vector<int>>& cost_matrix, std::vector
       }
     }
   }
-
-  bool FindAugmentingPath(int i, std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta) {
+  // bool FindAugmentingPath(int i, std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta) {
+  //   left_visited[i] = true;
+  //   for (int j = 0; j < N; j++) {
+  //     if (right_visited[j]) continue;
+  //     if (alpha[i] + beta[j] != cost_matrix[i][j]) continue;
+  //     right_visited[j] = true;
+  //     if (inverse_assignment[j] == -1 ||
+  //         FindAugmentingPath(inverse_assignment[j], cost_matrix, alpha, beta)) {
+  //       inverse_assignment[j] = i;
+  //       assignment[i] = j;
+  //       return true;
+  //     }
+  //   }
+  //   return false;
+  // }
+  bool FindAugmentingPath(int i, std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta){
     left_visited[i] = true;
-    for (int j = 0; j < N; j++) {
-      if (right_visited[j]) continue;
-      if (alpha[i] + beta[j] != cost_matrix[i][j]) continue;
-      right_visited[j] = true;
-      if (inverse_assignment[j] == -1 ||
-          FindAugmentingPath(inverse_assignment[j], cost_matrix, alpha, beta)) {
-        inverse_assignment[j] = i;
-        assignment[i] = j;
-        return true;
-      }
+    for(int j = 0 ; j < N; j++){
+        if(!right_visited[j] && (alpha[i] + beta[j] == cost_matrix[i][j])){
+            right_visited[j] = true;
+            if(inverse_assignment[j] == -1 || FindAugmentingPath(inverse_assignment[j], cost_matrix, alpha, beta)){
+                inverse_assignment[j] = i;
+                assignment[i] = j;
+                return true;
+            }
+        }
     }
     return false;
-  }
+}
+
+
   void RecalculatePotential(std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta) {
     theta = INF;
     for (int i = 0; i < N; i++) {
@@ -140,27 +157,13 @@ void SolvePartial(DHState *state){
     // std::cout << "\n";
 }
 
-void ComputeAlpha(int i, std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta){
-    alpha[i] = INF;
-    for(int j = 0; j < N; j++){
-            alpha[i] = std::min(alpha[i], cost_matrix[i][j] - beta[j]);
-    }
-}
-
-// void Match(DHState *state){
-//     int u = matching_order[state->depth];
-//     int v = state->mapping[u];
-//     for(int j = 0 ; j < G2->GetNumVertices();j++){
-//         if(j == v) continue;
-//         // state->matrix[u][j] = INF;
-//         ChangeCost(u, j, INF, state->matrix);
-//     }
-//     for(int i = 0 ; i < G2->GetNumVertices();i++){
-//         if(i == u) continue;
-//         // state->matrix[i][v] = INF;
-//         ChangeCost(i, v, INF, state->matrix);
+// void ComputeAlpha(int i, std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta){
+//     alpha[i] = INF;
+//     for(int j = 0; j < N; j++){
+//             alpha[i] = std::min(alpha[i], cost_matrix[i][j] - beta[j]);
 //     }
 // }
+
 void Match(DHState *state){
     int u = matching_order[state->depth];
     int v = state->mapping[u];
@@ -172,7 +175,7 @@ void Match(DHState *state){
         ChangeCost(u, j, INF, state->matrix, state->alpha, state->beta);
       }
     }
-    SolvePartial(state);
+    // SolvePartial(state);
     for(int i = 0 ; i < N; i++){
       if(i == u){
         ChangeCost(i, v, state->matrix[i][v], state->matrix,state->alpha, state->beta);
@@ -181,7 +184,7 @@ void Match(DHState *state){
         ChangeCost(i, v, INF, state->matrix,state->alpha, state->beta);
       }
     }
-    SolvePartial(state);
+    // SolvePartial(state);
 }
 
 void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta){
@@ -193,11 +196,11 @@ void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_m
         inverse_assignment[j] = -1;
     }
     else if(newCost < oldCost && alpha[i] + beta[j] > newCost){
-        // alpha[i] = INF;
-        // for(int j = 0 ; j < N; j++){
-        //     alpha[i] = std::min(alpha[i], cost_matrix[i][j] - beta[j]);
-        // }
-        ComputeAlpha(i, cost_matrix, alpha, beta);
+        alpha[i] = INF;
+        for(int j = 0 ; j < N; j++){
+            alpha[i] = std::min(alpha[i], cost_matrix[i][j] - beta[j]);
+        }
+        // ComputeAlpha(i, cost_matrix, alpha, beta);
         if(assignment[i] != j){
             inverse_assignment[assignment[i]] = -1;
             assignment[i] = -1;
@@ -213,7 +216,6 @@ void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_m
     for (int v = 0; v < G2->GetNumVertices(); v++) {
       if (state->inverse_mapping[v] != -1) continue;
       DHState* child_state = new DHState(state);
-
       child_state->matrix = state->matrix;//copy matrix from parent
 
       child_state->cost = GetChildEditCost(state, u, v);
@@ -224,7 +226,6 @@ void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_m
       child_state->mapping[u] = v;
       child_state->inverse_mapping[v] = u;
       child_state->depth = depth;
-
       auto [lb, ub] = DHLowerBound(child_state);
       child_state->lower_bound = lb;
       child_state->ub = ub;
@@ -377,7 +378,6 @@ void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_m
         auto &v_nbrs = G2->GetNeighbors(v);
         int newCost = 0;
         std::vector<bool> u_visited(G1->GetNumVertices(), 0);
-        
         for(int i = 0; i < u_nbrs.size(); i++){
             int u_curr = u_nbrs[i];
             u_visited[u_curr] = true; //do not compute twice
@@ -441,7 +441,6 @@ void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_m
                 if(G1->GetVertexLabel(u_curr) != G2->GetVertexLabel(v_curr)){
                     newCost +=2;
                 }
-                
                 auto &u_curr_nbrs = G1->GetNeighbors(u_curr);
                 for(int l = 0; l < u_curr_nbrs.size(); l++){
                     int u_curr_nbr = u_curr_nbrs[l];
@@ -490,22 +489,6 @@ void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_m
         }
     // return vertex;
     }
-// void ComputeBranchDistanceMatrixFromNull(DHState *state){
-//     int colSize = G2->GetNumVertices(); //right
-//     int rowSize = G1->GetNumVertices(); //left
-//     for(int v = 0 ; v < colSize; v++){
-//         int from_null = BranchEditDistanceFromNull(G2->GetBranch(v));
-//         for(int v_nbr : G2->GetNeighbors(v)){
-//             if(state->inverse_mapping[v_nbr] != -1){
-//                 from_null++;
-//             }
-//         }
-//         for(int u = rowSize; u < colSize; u++){
-//             // state->matrix[u][v] = from_null;
-//             ChangeCost(u, v, from_null, state->matrix);
-//         }
-//     }
-// }
 
 #ifdef CC
 std::pair<int, int>DHLowerBound(DHState *state){
@@ -516,19 +499,15 @@ std::pair<int, int>DHLowerBound(DHState *state){
     state->hungarian_assignment.resize(G2->GetNumVertices(), -1);
     state->alpha.resize(G2->GetNumVertices());
     int lb = 0, ub = 0;
+
     if(state->depth == -1){
-
-        Timer bd_timer;
-        bd_timer.Start();
         ComputeBranchDistanceMatrixInitial(state);
-        bd_timer.Stop();
-        branchdistance_time += bd_timer.GetTime();
-
 
         N = G2->GetNumVertices();
         InitializeSolve(state->alpha, state->beta);
-
+        
         Solve(state->matrix, state->alpha, state->beta);
+
         state->hungarian_assignment = assignment;
         std::vector<int> hungarian_mapping(G1->GetNumVertices(), -1);
         std::vector<int> hungarian_inverse_mapping(G2->GetNumVertices(), -1);
@@ -541,7 +520,6 @@ std::pair<int, int>DHLowerBound(DHState *state){
         }
         ub = ComputeDistance(hungarian_mapping, hungarian_inverse_mapping);
         lb = state->cost + ((total_cost + 1) / 2);
-        // std::cout << assignment << "\n";
     }
     else{
         N = G2->GetNumVertices();
@@ -550,22 +528,13 @@ std::pair<int, int>DHLowerBound(DHState *state){
         state->alpha = static_cast<DHState *>(state->parent)->alpha;
         state->beta = static_cast<DHState *>(state->parent)->beta;
         for(int i = 0; i < assignment.size();i++){ inverse_assignment[assignment[i]] = i;}
+
         left_visited = std::vector<int>(N, 0);
         right_visited = std::vector<int>(N, 0);
-
-        // InitializeVariables(state->matrix);
         Match(state);
-        Timer bd_timer;
-        bd_timer.Start();
         ComputeBranchDistanceMatrixDynamic(state);
-        bd_timer.Stop();
-        branchdistance_time += bd_timer.GetTime();
-
-        // InitializeVariables(state->matrix);
         SolvePartial(state);
         state->hungarian_assignment = assignment;
-
-
         std::vector<int> hungarian_mapping(G1->GetNumVertices(), -1);
         std::vector<int> hungarian_inverse_mapping(G2->GetNumVertices(), -1);
         std::memcpy(hungarian_mapping.data(), state->mapping, sizeof(int) * G1->GetNumVertices());
@@ -581,20 +550,6 @@ std::pair<int, int>DHLowerBound(DHState *state){
         ub = ComputeDistance(hungarian_mapping, hungarian_inverse_mapping);
         lb = state->cost + ((total_cost + 1) / 2);
     }
-      // std::cout << "u : " << u << " v : "<< v  << " cost : " << total_cost <<  " ub : " << ub << " lb : " << lb  << "\n";
-      // for(int i = 0 ; i < N; i ++){
-      //   std::cout << alpha[i] << " ";
-      // }
-      // std::cout << "\n";
-      // for(int i = 0 ; i < N; i ++){
-      //   std::cout << beta[i] << " ";
-      // }
-      // std::cout << "\n";
-      // for(int i = 0 ; i < N; i++){
-      // }
-      // std::cout << "\n";
-      // PrintCostMatrix(state->matrix);
-      // std::cout << state->hungarian_assignment << "\n--------------------------\n";
     return{lb, ub};
 }
 
@@ -752,8 +707,8 @@ std::pair<int, int> DHLowerBound(DHState* state){
 
 
 
-double Gethgtime() {return hungarian_time; }
-double Getbdtime()const {return branchdistance_time; }
+double Gethgtime() const {return time2; }
+double Getbdtime()const {return time1; }
 
 int TotalCost(DHState *state){
     int total_cost = 0;
