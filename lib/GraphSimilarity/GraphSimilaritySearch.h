@@ -6,18 +6,22 @@
 
 // #include "Base/BasicAlgorithms.h"
 // #include "Base/Hungarian.h"
-#include "Base/DynamicHungarian.h"
 #include "Branch.h"
 #include "DataStructure/LabeledGraph.h"
 #include "DifferenceVector.h"
 #include "GraphSimilarity/EditDistance.h"
 // #include "GraphSimilarity/GSSEntry.h"
 // #include "GraphSimilarity/GraphEditDistance/AStarBMa.h"
-// #include "GraphSimilarity/GraphEditDistance/AStarLSa.h"
 #include "GraphSimilarity/PartitionFilter.h"
 // #include "GraphSimilarity/GraphEditDistance/AStarMixed.h"
 // #include "GraphSimilarity/GraphEditDistance/OurGED.h"
+#include "Base/DynamicHungarian.h"
+#ifdef CC
 #include "GraphSimilarity/GraphEditDistance/AStarDH.h"
+#endif
+#ifdef COLORING
+#include "GraphSimilarity/GraphEditDistance/AStarLSa.h"
+#endif
 
 namespace GraphLib::GraphSimilarity {
 class GraphSimilaritySearch {
@@ -31,12 +35,15 @@ class GraphSimilaritySearch {
   int num_global_vertex_labels = 1, num_global_edge_labels = 1, tau = 0,
       num_indexed_branches;
   ResultLogger log;
+#ifdef CC
   Hungarian *hungariansolver = nullptr;
-
   AStarDH GEDSolver;
+#endif
+#ifdef COLORING
+  AStarLSa GEDSolver;
+#endif
   // AStarBMa GEDSolver;
   double total_hg_time = 0.0, total_bd_time = 0.0;
-  // AStarLSa GEDSolver;
 
   int num_answer = 0;
   std::vector<ResultLogger> ged_logs;
@@ -52,7 +59,11 @@ public:
   int GetNumGlobalVertexLabels() { return num_global_vertex_labels; }
   int GetNumGlobalEdgeLabels() { return num_global_edge_labels; }
   void BuildBranches();
-  GraphSimilaritySearch() { hungariansolver = new Hungarian(100); }
+  GraphSimilaritySearch() {
+#ifdef CC
+    hungariansolver = new Hungarian(100);
+#endif
+  }
   ~GraphSimilaritySearch() {
     for (auto entry : data_graphs) {
       delete entry;
@@ -66,6 +77,7 @@ public:
   void ProcessSimilaritySearch(int tau_) {
     this->tau = tau_;
     int q_index = 0;
+#ifdef COLORING
     GWL *gwl = new GWL(nullptr);
     ColorTree **prev_color_to_node = new ColorTree *[1000];
     ColorTree **curr_color_to_node = new ColorTree *[1000];
@@ -78,6 +90,14 @@ public:
     delete gwl;
     delete[] prev_color_to_node;
     delete[] curr_color_to_node;
+#endif
+#ifdef CC
+    for (auto &q : query_graphs) {
+      fprintf(stderr, "Processing query %d\n", q_index++);
+      fprintf(stderr, "Query id: %d\n", q->GetId());
+      RetrieveSimilarGraphs(q, tau, nullptr, nullptr, nullptr);
+    }
+#endif
     log.AddResult("NUM_CANDIDATES", total_candidates, RESULT_INT);
     log.AddResult("NUM_FILTERED", total_filtered, RESULT_INT);
     log.AddResult("FILTERING_TIME", total_filtering_time, RESULT_DOUBLE_FIXED);
@@ -197,19 +217,26 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
       num_candidates++;
       Timer verification_timer;
       verification_timer.Start();
+#ifdef CC
+      int ged = GEDSolver.GED();
+#endif
+#ifdef COLORING
       GSSEntry *combined = new GSSEntry;
       CombineGraphs(query, data, combined);
       gwl->SetGraph(combined);
       int ged =
           GEDSolver.GED(combined, gwl, prev_color_to_node, curr_color_to_node);
+      delete combined;
+#endif
       if (ged != -1) {
         num_answer++;
         // std::cout << data_idx << "\n";
       }
-      delete combined;
+#ifdef CC
       /*AStarBMa time*/
       total_hg_time += GEDSolver.Gethgtime();
       total_bd_time += GEDSolver.Getbdtime();
+#endif
       verification_timer.Stop();
       total_verifying_time += verification_timer.GetTime();
       verifying_time += verification_timer.GetTime();

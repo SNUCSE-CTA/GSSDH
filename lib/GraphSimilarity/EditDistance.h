@@ -8,6 +8,7 @@
 #include "State.h"
 #include "WeisfeilerLehman.h"
 #include "GraphSimilarity/GraphColoring/GWL.h"
+#include "Base/DynamicHungarian.h"
 
 namespace GraphLib::GraphSimilarity {
 bool verbosity = true;
@@ -268,8 +269,6 @@ public:
         branch_distance_matrix[u_idx][v_idx] = from_null;
     }
   }
-
-
 
   int ComputeDistance(std::vector<int> &mapping, bool verbose = false) {
     std::vector<int> inverse_mapping(G2->GetNumVertices(), -1);
