@@ -19,6 +19,7 @@
 // #include "GraphSimilarity/GraphEditDistance/AStarMixed.h"
 // #include "GraphSimilarity/GraphEditDistance/OurGED.h"
 #include "GraphSimilarity/GraphEditDistance/AStarDH.h"
+// #include "GraphSimilarity/GraphEditDistance/AStarDHo.h"
 
 namespace GraphLib::GraphSimilarity {
 class GraphSimilaritySearch {
@@ -34,11 +35,12 @@ class GraphSimilaritySearch {
   ResultLogger log;
   Hungarian *hungariansolver = nullptr;
 
+  // AStarDHo GEDSolver;
   AStarDH GEDSolver;
   // AStarBMa GEDSolver;
   double total_hg_time = 0.0, total_bd_time = 0.0;
+  int64_t total_hungarian_vertex_num = 0;
   // AStarLSa GEDSolver;
-
   int num_answer = 0;
   std::vector<ResultLogger> ged_logs;
 
@@ -80,6 +82,7 @@ public:
     /*BMa time*/
     log.AddResult("HUNGARIAN_TIME", total_hg_time, RESULT_DOUBLE_FIXED);
     log.AddResult("BranchDistance_TIME", total_bd_time, RESULT_DOUBLE_FIXED);
+    log.AddResult("Hungarian_Vertices", total_hungarian_vertex_num, RESULT_INT64);
   }
 
   void CombineGraphs(GSSEntry *g1, GSSEntry *g2, GSSEntry *combined) {
@@ -185,6 +188,7 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(GSSEntry *query_, int tau_) {
         // std::cout << data_idx << "\n";
       }
       /*AStarBMa time*/
+      // total_hungarian_vertex_num += GEDSolver.GetVertNum();
       total_hg_time += GEDSolver.Gethgtime();
       total_bd_time += GEDSolver.Getbdtime();
 

@@ -21,22 +21,20 @@ class AStarDH : public GraphEditDistanceSolver {
   int cnt = 0;
   std::priority_queue<DHState*, std::vector<DHState*>, StateComparator> queue;
   std::map<int, int> num_hungarian;
+
+  // Timer hg_timer;
   double hungarian_time = 0.0, branchdistance_time = 0.0;
-
-  double time1 = 0.0, time2 = 0.0;
-
+  int64_t hungarian_vertex_num = 0;
 /*from hungarian*/
   const int INF = 1e9;
   std::vector<int> assignment, inverse_assignment;
   std::vector<int> left_visited, right_visited;
   int total_cost, N, theta;
 
-
-
  public:
 
 /*from hungarian*/
-void InitializeSolve(std::vector<int>& alpha, std::vector<int>& beta) {
+void InitializeSolve_(std::vector<int>& alpha, std::vector<int>& beta) {
     total_cost = INF;
     assignment = std::vector<int>(N, -1);
     inverse_assignment = std::vector<int>(N, -1);
@@ -49,7 +47,7 @@ void InitializeSolve(std::vector<int>& alpha, std::vector<int>& beta) {
         // std::cerr<<__LINE__<<"\n";
 }
 
-void InitializeVariables(std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta) {
+void InitializeVariables_(std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta) {
     //        fprintf(stderr, "Invoked Hungarian::InitializeVariables()\n");
     std::fill(alpha.begin(), alpha.end(), 0);
     std::fill(beta.begin(), beta.end(), INF);
@@ -74,12 +72,13 @@ void InitializeVariables(std::vector<std::vector<int>>& cost_matrix, std::vector
   //   }
   //   return false;
   // }
-  bool FindAugmentingPath(int i, std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta){
+
+  bool FindAugmentingPath_(int i, std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta){
     left_visited[i] = true;
     for(int j = 0 ; j < N; j++){
         if(!right_visited[j] && (alpha[i] + beta[j] == cost_matrix[i][j])){
             right_visited[j] = true;
-            if(inverse_assignment[j] == -1 || FindAugmentingPath(inverse_assignment[j], cost_matrix, alpha, beta)){
+            if(inverse_assignment[j] == -1 || FindAugmentingPath_(inverse_assignment[j], cost_matrix, alpha, beta)){
                 inverse_assignment[j] = i;
                 assignment[i] = j;
                 return true;
@@ -88,14 +87,13 @@ void InitializeVariables(std::vector<std::vector<int>>& cost_matrix, std::vector
     }
     return false;
 }
-
-
-  void RecalculatePotential(std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta) {
+  void RecalculatePotential_(std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta) {
     theta = INF;
     for (int i = 0; i < N; i++) {
       if (left_visited[i]) {
         for (int j = 0; j < N; j++) {
           if (!right_visited[j]) {
+
             theta = std::min(theta, cost_matrix[i][j] - alpha[i] - beta[j]);
           }
         }
@@ -113,14 +111,83 @@ void InitializeVariables(std::vector<std::vector<int>>& cost_matrix, std::vector
     }
   }
 
-void Solve(std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha,std::vector<int>& beta) {
-    InitializeVariables(cost_matrix, alpha, beta);
+ bool FindAugmentingPath_p(int i, std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta, std::vector<int> &remain_right){
+  auto &matrix = cost_matrix;
+    left_visited[i] = true;
+    for(auto j : remain_right){
+        if(!right_visited[j] && (alpha[i] + beta[j] == matrix[i][j])){
+            right_visited[j] = true;
+            if(inverse_assignment[j] == -1 || FindAugmentingPath_p(inverse_assignment[j], cost_matrix, alpha, beta, remain_right)){
+                inverse_assignment[j] = i;
+                assignment[i] = j;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+  void RecalculatePotential_p(std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta, std::vector<int> &remain_left, std::vector<int> &remain_right) {
+    auto &matrix = cost_matrix; 
+    theta = INF;
+    for (auto i : remain_left) {
+      if (left_visited[i]) {
+        int alpha_i = alpha[i];
+        for (auto j : remain_right) {
+          if (!right_visited[j]) {
+            theta = std::min(theta, matrix[i][j] - alpha_i - beta[j]);
+          }
+        }
+      }
+    }
+    for (auto i : remain_left) {
+      if (left_visited[i]) {
+        alpha[i] += theta;
+      }
+    }
+    for (auto j : remain_right) {
+      if (right_visited[j]) {
+        beta[j] -= theta;
+      }
+    }
+  }
+
+void SolvePartial_p(DHState *state, std::vector<int> &remain_left, std::vector<int> &remain_right){
+  auto &matrix_ = state->matrix;
+  auto &alpha_ = state->alpha;
+  auto &beta_ = state->beta;
+  for(auto i : remain_left){
+    if(assignment[i] != -1) continue;
+    hungarian_vertex_num++;
+    while(true){
+      std::fill(left_visited.begin(), left_visited.end(), 0);
+      std::fill(right_visited.begin(), right_visited.end(), 0);
+      if (FindAugmentingPath_p(i, matrix_, alpha_, beta_, remain_right)) break;
+      RecalculatePotential_p(matrix_, alpha_, beta_, remain_left, remain_right);
+    }
+  }
+
+
+  total_cost = 0;
+  for (int i = 0; i < G1->GetNumVertices(); i++){
+        if(state->mapping[i] == -1){
+            total_cost += state->matrix[i][assignment[i]];
+        }
+    }
+  for(int i = G1->GetNumVertices() ; i < G2->GetNumVertices();i++){
+        total_cost += state->matrix[i][assignment[i]];
+    }
+}
+
+
+void Solve_(std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha,std::vector<int>& beta) {
+    InitializeVariables_(cost_matrix, alpha, beta);
     for (int i = 0; i < N; i++) {
+      hungarian_vertex_num++;
       while (true) {
         std::fill(left_visited.begin(), left_visited.end(), 0);
         std::fill(right_visited.begin(), right_visited.end(), 0);
-        if (FindAugmentingPath(i, cost_matrix, alpha, beta)) break;
-        RecalculatePotential(cost_matrix, alpha, beta);
+        if (FindAugmentingPath_(i, cost_matrix, alpha, beta)) break;
+        RecalculatePotential_(cost_matrix, alpha, beta);
       }
     }
     total_cost = 0;
@@ -130,83 +197,67 @@ void Solve(std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha,s
   }
 
 
-void SolvePartial(DHState *state){
-  for(int i = 0 ; i < N;i++){
+void SolvePartial_(DHState *state){
+  for(int i = 0 ; i < N; i ++){
     if(assignment[i] != -1) continue;
+    hungarian_vertex_num++;
     while(true){
+      
       std::fill(left_visited.begin(), left_visited.end(), 0);
       std::fill(right_visited.begin(), right_visited.end(), 0);
-      if (FindAugmentingPath(i, state->matrix, state->alpha, state->beta)) break;
-      RecalculatePotential(state->matrix,state->alpha, state->beta);
+      if (FindAugmentingPath_(i, state->matrix, state->alpha, state->beta)) break;
+      RecalculatePotential_(state->matrix,state->alpha, state->beta);
     }
   }
   total_cost = 0;
-    for (int i = 0; i < G1->GetNumVertices(); i++){
+  for (int i = 0; i < G1->GetNumVertices(); i++){
         if(state->mapping[i] == -1){
             total_cost += state->matrix[i][assignment[i]];
             // std::cout << i << " " << assignment[i] << " " <<state->matrix[i][assignment[i]] << "\n";
         }
     }
-    for(int i = G1->GetNumVertices() ; i < G2->GetNumVertices();i++){
-      // if(state->mapping[i] == -1){
+  for(int i = G1->GetNumVertices() ; i < G2->GetNumVertices();i++){
         total_cost += state->matrix[i][assignment[i]];
-                    // std::cout << i << " " << assignment[i] << " " <<state->matrix[i][assignment[i]] << "\n";
-
-      // }
     }
     // std::cout << "\n";
 }
 
-// void ComputeAlpha(int i, std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta){
-//     alpha[i] = INF;
-//     for(int j = 0; j < N; j++){
-//             alpha[i] = std::min(alpha[i], cost_matrix[i][j] - beta[j]);
-//     }
-// }
 
-void Match(DHState *state){
+void Match_(DHState *state){
     int u = matching_order[state->depth];
     int v = state->mapping[u];
     for(int j = 0; j < N; j++){
-      if(j == v){
-        ChangeCost(u, j, state->matrix[u][j], state->matrix,state->alpha, state->beta);
-      }
-      else{
-        ChangeCost(u, j, INF, state->matrix, state->alpha, state->beta);
-      }
+      if(j == v) continue;
+        ChangeCost(u, j, INF, state->matrix, state->alpha, state->beta, false);
     }
-    // SolvePartial(state);
     for(int i = 0 ; i < N; i++){
-      if(i == u){
-        ChangeCost(i, v, state->matrix[i][v], state->matrix,state->alpha, state->beta);
-      }
-      else{
-        ChangeCost(i, v, INF, state->matrix,state->alpha, state->beta);
-      }
+      if(i == u) continue;
+      ChangeCost(i, v, INF, state->matrix,state->alpha, state->beta, false);
     }
-    // SolvePartial(state);
+      inverse_assignment[v] = u;
+      assignment[u] = v;
 }
 
-void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta){
+void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha, std::vector<int>& beta, bool rowFlag){
     int vertex = i;
     int oldCost = cost_matrix[i][j];
     cost_matrix[i][j] = newCost;
-    if(newCost > oldCost && assignment[i] == j){
+    if(newCost > oldCost && assignment[i] == j){  
         assignment[i] = -1;
         inverse_assignment[j] = -1;
     }
-    else if(newCost < oldCost && alpha[i] + beta[j] > newCost){
-        alpha[i] = INF;
-        for(int j = 0 ; j < N; j++){
-            alpha[i] = std::min(alpha[i], cost_matrix[i][j] - beta[j]);
-        }
-        // ComputeAlpha(i, cost_matrix, alpha, beta);
-        if(assignment[i] != j){
-            inverse_assignment[assignment[i]] = -1;
-            assignment[i] = -1;
-        }
-
-    }
+    // else if(newCost < oldCost && alpha[i] + beta[j] > newCost){
+    //     alpha[i] = INF;
+    //     if(rowFlag == true){
+    //       for(int j = 0 ; j < N; j++){
+    //         alpha[i] = std::min(alpha[i], cost_matrix[i][j] - beta[j]);
+    //       }
+    //     }
+    //     if(assignment[i] != j){
+    //         inverse_assignment[assignment[i]] = -1;
+    //         assignment[i] = -1;
+    //     }
+    // }
 }
 
   void ExtendState(DHState* state) {
@@ -371,7 +422,7 @@ void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_m
     void ComputeBranchDistanceMatrixDynamic(DHState *state){ 
         DifferenceVector diff;
         diff.init(20);
-        std::vector<std::tuple<int,int,int>> vertex;
+        // std::vector<std::tuple<int,int,int>> vertex;
         int u = matching_order[state->depth];
         int v = state->mapping[u];
         auto &u_nbrs = G1->GetNeighbors(u);
@@ -422,12 +473,18 @@ void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_m
                 }
                 int inner_distance = diff.GetDifference();
                 newCost += inner_distance;
+
                 // state->matrix[u_curr][v_curr] = newCost;
-                ChangeCost(u_curr, v_curr, newCost, state->matrix, state->alpha, state->beta);
+                if(j == G2->GetNumVertices() -1){
+                  ChangeCost(u_curr, v_curr, newCost, state->matrix, state->alpha, state->beta, true);
+                }
+                else{
+                  ChangeCost(u_curr, v_curr, newCost, state->matrix, state->alpha, state->beta, false);
+                }
                 // vertex.push_back(std::make_tuple(u_curr, v_curr, newCost));
             }
+            // ComputeAlpha(state, u_curr);
         }
-
         newCost = 0;
         for(int j = 0 ; j < v_nbrs.size(); j++){
             int v_curr = v_nbrs[j];
@@ -471,10 +528,9 @@ void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_m
                 int inner_distance = diff.GetDifference();
                 newCost += inner_distance;
                 // state->matrix[u_curr][v_curr] = newCost;
-                ChangeCost(u_curr, v_curr, newCost, state->matrix, state->alpha, state->beta);
+                ChangeCost(u_curr, v_curr, newCost, state->matrix, state->alpha, state->beta, true);
                 // vertex.push_back(std::make_tuple(u_curr, v_curr, newCost));
             }
-
             int from_null = BranchEditDistanceFromNull(G2->GetBranch(v_curr));
             for (int v_nbr : G2->GetNeighbors(v_curr)) {
                 if (state->inverse_mapping[v_nbr] != -1) {
@@ -484,30 +540,40 @@ void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_m
             }
             for(int i = G1->GetNumVertices(); i < G2->GetNumVertices();i++){
               // std::cout << "cur nbr " <<v_curr << " " << i <<  " " << from_null << "\n";
-              ChangeCost(i, v_curr, from_null, state->matrix, state->alpha, state->beta);
+              state->matrix[i][v_curr] = from_null;
+              ChangeCost(i, v_curr, from_null, state->matrix, state->alpha, state->beta, true);
             }
+            // ComputeBeta(state, v_curr);
         }
     // return vertex;
     }
 
-#ifdef CC
+#ifdef DD
 std::pair<int, int>DHLowerBound(DHState *state){
-    int u = matching_order[state->depth];
-    int v = state->mapping[u];
-
+    int u = 0;
+    int v = 0;
     state->matrix.resize(G2->GetNumVertices(), std::vector<int>(G2->GetNumVertices(), 0));
     state->hungarian_assignment.resize(G2->GetNumVertices(), -1);
     state->alpha.resize(G2->GetNumVertices());
     int lb = 0, ub = 0;
+    Timer hg_timer;
+    Timer bd_timer;
 
     if(state->depth == -1){
+        bd_timer.Start();
         ComputeBranchDistanceMatrixInitial(state);
+        bd_timer.Stop();
+        branchdistance_time += bd_timer.GetTime();
 
         N = G2->GetNumVertices();
-        InitializeSolve(state->alpha, state->beta);
+        InitializeSolve_(state->alpha, state->beta);
         
-        Solve(state->matrix, state->alpha, state->beta);
-
+        hg_timer.Start();
+        Solve_(state->matrix, state->alpha, state->beta);
+        
+        exit(0);
+        hg_timer.Stop();
+        hungarian_time += hg_timer.GetTime();
         state->hungarian_assignment = assignment;
         std::vector<int> hungarian_mapping(G1->GetNumVertices(), -1);
         std::vector<int> hungarian_inverse_mapping(G2->GetNumVertices(), -1);
@@ -522,18 +588,146 @@ std::pair<int, int>DHLowerBound(DHState *state){
         lb = state->cost + ((total_cost + 1) / 2);
     }
     else{
+        u = matching_order[state->depth];
+        v = state->mapping[u];
         N = G2->GetNumVertices();
         state->matrix = static_cast<DHState *>(state->parent)->matrix;
         assignment = static_cast<DHState *>(state->parent)->hungarian_assignment; //copy to local assignment
         state->alpha = static_cast<DHState *>(state->parent)->alpha;
         state->beta = static_cast<DHState *>(state->parent)->beta;
+        inverse_assignment.resize(G2->GetNumVertices(), -1);
         for(int i = 0; i < assignment.size();i++){ inverse_assignment[assignment[i]] = i;}
 
-        left_visited = std::vector<int>(N, 0);
-        right_visited = std::vector<int>(N, 0);
-        Match(state);
+        bd_timer.Start();
+        Match_(state);
         ComputeBranchDistanceMatrixDynamic(state);
-        SolvePartial(state);
+        bd_timer.Stop();
+        branchdistance_time += bd_timer.GetTime();
+        
+        std::vector<int> remain_left, remain_right;
+        for(int i = 0 ; i < G1->GetNumVertices(); i++){if(state->mapping[i] == -1){remain_left.emplace_back(i);}}
+        for(int i = G1->GetNumVertices(); i < G2->GetNumVertices();i++){remain_left.emplace_back(i);}
+        for(int i = 0 ; i < G2->GetNumVertices(); i++){if(state->inverse_mapping[i] == -1){remain_right.emplace_back(i);}}
+
+        int remaining = G2->GetNumVertices() - (state->depth + 1);
+        std::vector<std::vector<int>> remain_matrix(remaining, (std::vector<int>(remaining, 0)));
+        std::vector<int> remain_left_idx(N, -1);
+        std::vector<int> remain_right_idx(N, -1);
+
+        for(int v_idx = 0 ; v_idx < remain_right.size(); v_idx++){
+          for(int u_idx = 0 ; u_idx < remain_left.size(); u_idx++){
+            int u_curr = remain_left[u_idx];
+            int v_curr = remain_right[v_idx];
+            remain_matrix[u_idx][v_idx] = state->matrix[u_curr][v_curr];
+          }
+        }
+
+        Hungarian hungarian(remain_matrix);
+        hungarian.CopyAssignmentAlphaBeta(assignment, inverse_assignment, state->alpha, state->beta, remain_left, remain_right);
+
+        // exit(0);
+
+
+        hg_timer.Start();
+        // SolvePartial_p(state, remain_left, remain_right);
+        hungarian.SolvePartial();
+        hg_timer.Stop();
+        hungarian_time += hg_timer.GetTime();
+        hungarian.CopyAssignmentAlphaBetaReverse(assignment, inverse_assignment, state->alpha, state->beta, remain_left, remain_right);
+
+
+        state->hungarian_assignment = assignment;
+        std::vector<int> hungarian_mapping(G1->GetNumVertices(), -1);
+        std::vector<int> hungarian_inverse_mapping(G2->GetNumVertices(), -1);
+        std::memcpy(hungarian_mapping.data(), state->mapping, sizeof(int) * G1->GetNumVertices());
+        std::memcpy(hungarian_inverse_mapping.data(), state->inverse_mapping, sizeof(int) * G2->GetNumVertices());
+        for(int i = 0 ; i < G1->GetNumVertices();i++){
+            if(state->mapping[i] == -1){
+                int u_ = i;
+                int v_ = assignment[i];
+                hungarian_mapping[u_] = v_;
+                hungarian_inverse_mapping[v_] = u_;
+            }
+        }
+        ub = ComputeDistance(hungarian_mapping, hungarian_inverse_mapping);
+        lb = state->cost + ((total_cost + 1) / 2);
+    }
+    return{lb, ub};
+}
+
+#endif
+#ifdef CC
+std::pair<int, int>DHLowerBound(DHState *state){
+    int u = 0;
+    int v = 0;
+    state->matrix.resize(G2->GetNumVertices(), std::vector<int>(G2->GetNumVertices(), 0));
+    state->hungarian_assignment.resize(G2->GetNumVertices(), -1);
+    state->alpha.resize(G2->GetNumVertices());
+    int lb = 0, ub = 0;
+    
+    Timer hg_timer;
+    Timer bd_timer;
+
+    if(state->depth == -1){
+        bd_timer.Start();
+        ComputeBranchDistanceMatrixInitial(state);
+        bd_timer.Stop();
+        branchdistance_time += bd_timer.GetTime();
+
+        N = G2->GetNumVertices();
+        InitializeSolve_(state->alpha, state->beta);
+        
+        hg_timer.Start();
+        Solve_(state->matrix, state->alpha, state->beta);
+        hg_timer.Stop();
+        hungarian_time += hg_timer.GetTime();
+        
+        state->hungarian_assignment = assignment;
+        std::vector<int> hungarian_mapping(G1->GetNumVertices(), -1);
+        std::vector<int> hungarian_inverse_mapping(G2->GetNumVertices(), -1);
+        std::memcpy(hungarian_mapping.data(), state->mapping, sizeof(int) * G1->GetNumVertices());
+        std::memcpy(hungarian_inverse_mapping.data(), state->inverse_mapping, sizeof(int) * G2->GetNumVertices());
+        for (int i = 0; i < G1->GetNumVertices(); i++) {
+            if(state->mapping[i] != -1) continue;
+            hungarian_mapping[i] = state->hungarian_assignment[i];
+            hungarian_inverse_mapping[state->hungarian_assignment[i]] = i;
+        }
+        ub = ComputeDistance(hungarian_mapping, hungarian_inverse_mapping);
+        lb = state->cost + ((total_cost + 1) / 2);
+    }
+    else{
+        u = matching_order[state->depth];
+        v = state->mapping[u];
+        N = G2->GetNumVertices();
+      
+        state->matrix.resize(N, (std::vector<int>(N, 0)));    
+        state->matrix = static_cast<DHState *>(state->parent)->matrix;
+        assignment = static_cast<DHState *>(state->parent)->hungarian_assignment; //copy to local assignment
+        state->alpha = static_cast<DHState *>(state->parent)->alpha;
+        state->beta = static_cast<DHState *>(state->parent)->beta;
+        inverse_assignment.resize(G2->GetNumVertices(), -1);
+
+        for(int i = 0; i < assignment.size();i++){ inverse_assignment[assignment[i]] = i;}
+        bd_timer.Start();
+        Match_(state);
+
+        ComputeBranchDistanceMatrixDynamic(state);
+        bd_timer.Stop();
+        branchdistance_time += bd_timer.GetTime();
+        
+
+        std::vector<int> remain_left, remain_right;
+        for(int i = 0 ; i < G1->GetNumVertices(); i++){if(state->mapping[i] == -1){remain_left.emplace_back(i);}}
+        for(int i = G1->GetNumVertices(); i < G2->GetNumVertices();i++){remain_left.emplace_back(i);}
+        for(int i = 0 ; i < G2->GetNumVertices(); i++){if(state->inverse_mapping[i] == -1){remain_right.emplace_back(i);}}
+
+        // std::cout << state->alpha << "\n";
+        // std::cout << state->beta << "\n";
+
+        hg_timer.Start();
+        SolvePartial_p(state, remain_left, remain_right);
+        hg_timer.Stop();
+        hungarian_time += hg_timer.GetTime();
         state->hungarian_assignment = assignment;
         std::vector<int> hungarian_mapping(G1->GetNumVertices(), -1);
         std::vector<int> hungarian_inverse_mapping(G2->GetNumVertices(), -1);
@@ -555,73 +749,6 @@ std::pair<int, int>DHLowerBound(DHState *state){
 
 #endif
 
-#ifdef BB
-std::pair<int, int> DHLowerBound(DHState* state){
-        int remaining = G2->GetNumVertices() - (state->depth + 1);
-        std::vector<int> rem_left, rem_right;
-        std::vector<std::vector<int>> branch_distance_matrix(remaining, std::vector<int>(remaining, 0));
-
-        state->matrix.resize(G2->GetNumVertices(), std::vector<int>(G2->GetNumVertices(), 0));
-        state->hungarian_assignment.resize(G2->GetNumVertices(), -1);
-        int lb = 0;
-        int ub = 0;
-        int total_cost = 0;
-        if(state->depth == -1){
-            for(int i = 0 ; i < G1->GetNumVertices();i++){rem_left.emplace_back(i);}
-            for(int i = 0 ; i < G2->GetNumVertices();i++){rem_right.emplace_back(i);}
-            ComputeBranchDistanceMatrixInitial(state);
-            Hungarian hungarian(state->matrix);
-            hungarian.Solve();
-            auto& assignment = hungarian.GetAssignment();
-            state->hungarian_assignment = assignment;
-            std::vector<int> hungarian_mapping(G1->GetNumVertices(), -1);
-            std::vector<int> hungarian_inverse_mapping(G2->GetNumVertices(), -1);
-            std::memcpy(hungarian_mapping.data(), state->mapping, sizeof(int) * G1->GetNumVertices());
-            std::memcpy(hungarian_inverse_mapping.data(), state->inverse_mapping, sizeof(int) * G2->GetNumVertices());
-            for (int i = 0; i < rem_left.size(); i++) {
-                int u = rem_left[i];
-                int v = rem_right[assignment[i]];
-                hungarian_mapping[u] = v;
-                hungarian_inverse_mapping[v] = u;
-            }
-            total_cost = hungarian.GetTotalCost();
-            ub = ComputeDistance(hungarian_mapping, hungarian_inverse_mapping);
-            lb = state->cost + ((hungarian.GetTotalCost() + 1) / 2);
-        }
-        else{
-            for(int i = 0 ; i < G1->GetNumVertices();i++){if(state->mapping[i] == -1)rem_left.emplace_back(i);}
-            for(int v = 0; v < G2->GetNumVertices();v++){if(state->inverse_mapping[v] == -1)rem_right.emplace_back(v);}
-
-            /*copy matrix from parent*/
-            state->matrix = static_cast<DHState*> (state->parent)->matrix;
-            /*copy hungarian assignment from parent*/
-            state->hungarian_assignment = static_cast<DHState*> (state->parent)->hungarian_assignment;
-
-            ComputeBranchDistanceMatrixNew(state, branch_distance_matrix, rem_left, rem_right, idx_assignment); //copy cost matrix from state matrix
-            Hungarian hungarian(branch_distance_matrix); //step 1
-            hungarian.CopyParentAssignment(state->hungarian_assignment, rem_left); //size of hungarian_assignment should be the numver of G2 vertices
-
-
-
-            std::vector<std::tuple<int, int, int>> cost_changed_edge;
-            cost_changed_edge = ComputeBranchDistanceMatrixDynamic(state);//state->matrix cost update
-            for(int i = 0 ; i < cost_changed_edge.size();i++){ //step 2
-                int u_ = std::get<0>(cost_changed_edge[i]);
-                int v_ = std::get<1>(cost_changed_edge[i]);
-                int cost_ = std::get<2>(cost_changed_edge[i]);
-            }
-    
-
-            if(cnt == 0){
-                // PrintCostMatrix(branch_distance_matrix);
-                // std::cout << state->m << "\n";
-                cnt++;
-            }
-
-        }
-    return{lb, ub};
-    }
-#endif
 
 #ifdef AA
   std::pair<int, int> DHLowerBound(DHState* state) {
@@ -642,10 +769,9 @@ std::pair<int, int> DHLowerBound(DHState* state){
     branchdistance_time += bd_timer.GetTime();
     Hungarian hungarian(branch_distance_matrix);
 
-
-
     Timer hg_timer;
     hg_timer.Start();
+    hungarian_vertex_num += remaining;
     hungarian.Solve();
     hg_timer.Stop();
     hungarian_time += hg_timer.GetTime();
@@ -684,7 +810,7 @@ std::pair<int, int> DHLowerBound(DHState* state){
     //             std::cout << rem_left[i] << " ";
     //         }
 
-    //         PrintCostMatrix(branch_distance_matrix);
+            // PrintCostMatrix(branch_distance_matrix);
     //         std::cout << "\n";
     //         PrintStateMapping(state);
             // std::cout << "hg mapping : " <<  hungarian_mapping << "\n";
@@ -701,14 +827,19 @@ std::pair<int, int> DHLowerBound(DHState* state){
     
       // std::cout << "u : " << u << " v : "<< v  << " cost : " << hungarian.GetTotalCost() <<  " ub : " << ub << " lb : " << lb  << "\n";
       // std::cout << hungarian_mapping << "\n--------------------------\n";
+        // std::cout << "u v " << u << " " << v << "\n";
+        // // std::cout << "lb, ub " << lb << " " << ub <<"\n";
+        // std::cout << hungarian.GetTotalCost() << "\n";
+        // std::cout << hungarian_mapping << "\n";
     return {lb, ub};
   }//DHLowerbound original version
 #endif
 
 
 
-double Gethgtime() const {return time2; }
-double Getbdtime()const {return time1; }
+double Gethgtime() const {return hungarian_time; }
+double Getbdtime()const {return branchdistance_time; }
+int64_t GetVertNum()const {return hungarian_vertex_num;}
 
 int TotalCost(DHState *state){
     int total_cost = 0;
@@ -745,7 +876,7 @@ void PrintCurrentMatching(DHState* state){
     int u = matching_order[state->depth];
     int v = state->mapping[u];
     std::cout << "u : " << u  << " v : " << v <<"\n";
-}
 
+}
 };  // namespace GraphLib::GraphSimilarity
 }
