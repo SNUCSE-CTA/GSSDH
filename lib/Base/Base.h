@@ -3,13 +3,20 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
-#include <filesystem>
 #include <fstream>
 #include <limits>
 #include <map>
 #include <queue>
 #include <random>
 #include <vector>
+
+#ifdef USE_EXPERIMENTAL_FILESYSTEM
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#else
+#include <filesystem>
+namespace fs = std::filesystem;
+#endif
 
 #include "Logger.h"
 using std::deque;
@@ -50,8 +57,8 @@ static std::streampos fileSize(const char *filePath) {
 
 bool CreateDirectory(const std::string &dirName) {
   std::error_code err;
-  if (!std::filesystem::create_directories(dirName, err)) {
-    if (std::filesystem::exists(dirName)) {
+  if (!fs::create_directories(dirName, err)) {
+    if (fs::exists(dirName)) {
       return true;
     }
     printf("CREATEDIR: FAILED to create [%s], err:%s\n", dirName.c_str(),

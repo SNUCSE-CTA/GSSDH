@@ -64,7 +64,6 @@ struct State {
     // Free existing memory
     delete[] mapping;
     delete[] inverse_mapping;
-
     // Copy data
     id = other.id;
     parent = other.parent;

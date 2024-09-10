@@ -172,7 +172,7 @@ void LabeledGraph::LoadCFLGraph(const std::string &filename) {
 }
 
 void LabeledGraph::WriteToFile(const std::string &filename) {
-  std::filesystem::path filepath = filename;
+  fs::path filepath = filename;
   create_directories(filepath.parent_path());
   std::ofstream out(filename);
   out << "t " << GetNumVertices() << ' ' << GetNumEdges() / 2 << '\n';
