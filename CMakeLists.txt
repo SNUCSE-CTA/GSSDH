@@ -14,6 +14,7 @@ else()
     message(STATUS "C Compiler: ${CMAKE_C_COMPILER}")
     message(STATUS "C++ Compiler: ${CMAKE_CXX_COMPILER}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++23 -Ofast -Wno-psabi")
+    # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++23 -Ofast -Wno-psabi -fsanitize=address -g")
 endif()
 
 FIND_PACKAGE(Boost REQUIRED)

@@ -10,7 +10,6 @@
 #include "DataStructure/LabeledGraph.h"
 #include "DifferenceVector.h"
 #include "GraphSimilarity/EditDistance.h"
-#include "GraphSimilarity/GraphColoring/GWL.h"
 // #include "GraphSimilarity/GSSEntry.h"
 // #include "GraphSimilarity/GraphEditDistance/AStarBMa.h"
 #include "GraphSimilarity/GraphEditDistance/AStarLSa.h"
@@ -42,7 +41,9 @@ public:
   int total_candidates = 0, total_filtered = 0;
   ResultLogger GetLog() { return log; }
   void LoadGraphDatabase(std::string &filename, int which);
-  void RetrieveSimilarGraphs(GSSEntry *query, int tau);
+  void RetrieveSimilarGraphs(GSSEntry *query, int tau, GWL *gwl,
+                             ColorTree **prev_color_to_node,
+                             ColorTree **curr_color_to_node);
   std::vector<GSSEntry *> &GetData() { return data_graphs; }
   int GetNumGlobalVertexLabels() { return num_global_vertex_labels; }
   int GetNumGlobalEdgeLabels() { return num_global_edge_labels; }
@@ -60,9 +61,19 @@ public:
 
   void ProcessSimilaritySearch(int tau_) {
     this->tau = tau_;
+    int q_index = 0;
+    GWL *gwl = new GWL(nullptr);
+    ColorTree **prev_color_to_node = new ColorTree *[1000];
+    ColorTree **curr_color_to_node = new ColorTree *[1000];
     for (auto &q : query_graphs) {
-      RetrieveSimilarGraphs(q, tau);
+      fprintf(stderr, "Processing query %d\n", q_index++);
+      fprintf(stderr, "Query id: %d\n", q->GetId());
+      RetrieveSimilarGraphs(q, tau, gwl, prev_color_to_node,
+                            curr_color_to_node);
     }
+    delete gwl;
+    delete[] prev_color_to_node;
+    delete[] curr_color_to_node;
     log.AddResult("NUM_CANDIDATES", total_candidates, RESULT_INT);
     log.AddResult("NUM_FILTERED", total_filtered, RESULT_INT);
     log.AddResult("FILTERING_TIME", total_filtering_time, RESULT_DOUBLE_FIXED);
@@ -75,7 +86,10 @@ public:
   }
 
   void CombineGraphs(GSSEntry *g1, GSSEntry *g2, GSSEntry *combined) {
-    combined->CombineGraph(g1, g2);
+    if (g1->GetNumVertices() <= g2->GetNumVertices())
+      combined->CombineGraph(g1, g2);
+    else
+      combined->CombineGraph(g2, g1);
   }
 };
 
@@ -153,39 +167,44 @@ void GraphSimilaritySearch::BuildBranches() {
   }
 }
 
-void GraphSimilaritySearch::RetrieveSimilarGraphs(GSSEntry *query_, int tau_) {
+void GraphSimilaritySearch::RetrieveSimilarGraphs(
+    GSSEntry *query_, int tau_, GWL *gwl, ColorTree **prev_color_to_node,
+    ColorTree **curr_color_to_node) {
   this->query = query_;
   this->tau = tau_;
   int num_filtered = 0, num_candidates = 0;
+  double coloring_time = 0, filtering_time = 0, verifying_time = 0;
   for (int data_idx = 0; data_idx < data_graphs.size(); data_idx++) {
+    // std::cout << "Processing data graph " << data_idx << std::endl;
     GSSEntry *data = data_graphs[data_idx];
     // if (data->GetId() != query->GetId())
     //   continue;
-    GSSEntry *combined = new GSSEntry;
-    CombineGraphs(data, query, combined);
-    GWL *gwl = new GWL(combined);
-    gwl->GraphColoring(2, std::unordered_set<int>({3, 4, 11, 12}));
-#ifdef DEBUG_COLORING
-    gwl->debug();
-#endif
     GEDSolver.InitializeSolver(query, data, this->tau);
     Timer filtering_timer;
     filtering_timer.Start();
     bool filtering_result = GEDSolver.GEDVerificiationFiltering();
     filtering_timer.Stop();
     total_filtering_time += filtering_timer.GetTime();
+    filtering_time += filtering_timer.GetTime();
     if (filtering_result) {
       num_candidates++;
       Timer verification_timer;
       verification_timer.Start();
-      int ged = GEDSolver.GED();
+      GSSEntry *combined = new GSSEntry;
+      CombineGraphs(query, data, combined);
+      gwl->SetGraph(combined);
+      int ged =
+          GEDSolver.GED(combined, gwl, prev_color_to_node, curr_color_to_node);
       if (ged != -1) {
         num_answer++;
       }
+      delete combined;
       verification_timer.Stop();
       total_verifying_time += verification_timer.GetTime();
-    } else
+      verifying_time += verification_timer.GetTime();
+    } else {
       num_filtered++;
+    }
     ged_logs.push_back(GEDSolver.GetLog());
     continue;
   }
@@ -193,6 +212,9 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(GSSEntry *query_, int tau_) {
   total_filtered += num_filtered;
   fprintf(stderr, "Filtered %d out of %lu graphs\n", num_filtered,
           data_graphs.size());
+  fprintf(stderr, "Coloring time = %.6lf\n", coloring_time);
+  fprintf(stderr, "Filtering time = %.6lf\n", filtering_time);
+  fprintf(stderr, "Verifying time = %.6lf\n", verifying_time);
 }
 
 int GraphSimilaritySearch::BranchBound(int data_idx) {
