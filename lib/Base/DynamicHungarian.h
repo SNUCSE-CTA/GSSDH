@@ -70,7 +70,7 @@ class Hungarian {
   }
 
   bool FindAugmentingPath(int i) {
-    // functioncall++;
+    functioncall++;
     left_visited[i] = true;
     for (int j = 0; j < N; j++) {
       if (right_visited[j]) continue;
@@ -117,7 +117,7 @@ class Hungarian {
     // double pt = 0.0;
     InitializeVariables();
     for (int i = 0; i < N; i++) {
-      functioncall++;
+      // functioncall++;
       while (true) {
 
         std::fill(left_visited.begin(), left_visited.end(), 0);

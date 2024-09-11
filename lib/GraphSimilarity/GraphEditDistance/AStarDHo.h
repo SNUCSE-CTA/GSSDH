@@ -70,7 +70,7 @@ class AStarDHo : public GraphEditDistanceSolver{
     //     return false;
     // }
     bool FindAugmentingPath(int i, const std::vector<std::vector<int>>& cost_matrix) {
-        //functioncall++;
+        functioncall++;
         // left_visited[i] = true;
         __left.push_back(i);
 
@@ -127,9 +127,9 @@ class AStarDHo : public GraphEditDistanceSolver{
         //}
     }
     void Solve(std::vector<std::vector<int>>& cost_matrix, DHoState *state, std::vector<int>&rem_left, std::vector<int>&rem_right){
-        for(int i = 0 ; i < N; i++){
+        for(int i = N - 1 ; i >= 0; i--){
             if(assignment[i] != -1) continue;
-            functioncall ++;
+            // functioncall ++;
                 while(true){
                     // std::fill(left_visited.begin(), left_visited.end(), 0);
                     std::fill(right_visited.begin(), right_visited.end(), 0);
