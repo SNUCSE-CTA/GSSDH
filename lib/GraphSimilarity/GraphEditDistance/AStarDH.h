@@ -199,7 +199,7 @@ void Solve_(std::vector<std::vector<int>>& cost_matrix, std::vector<int>& alpha,
 
 
 void SolvePartial_(DHState *state){
-  for(int i = 0 ; i < N; i ++){
+  for(int i = N -1 ; i >=0 ; i --){
     if(assignment[i] != -1) continue;
     hungarian_vertex_num++;
     while(true){
