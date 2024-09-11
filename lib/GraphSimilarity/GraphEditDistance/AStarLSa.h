@@ -6,7 +6,8 @@ DEBUG LSadebugger(2);
 namespace GraphLib::GraphSimilarity {
 class AStarLSa : public GraphEditDistanceSolver {
 public:
-  void ExtendState(State *state) {
+  void ExtendState(State *state, GWL *gwl, ColorTree **prev_color_to_node,
+                   ColorTree **curr_color_to_node) {
     if (state->cost >= current_best)
       return;
     int depth = state->depth + 1;
@@ -50,7 +51,21 @@ public:
           unmapped_cross_edge_labels[fa].update(G2->GetEdgeLabel(i), -1);
       }
     }
-
+    std::fill_n(prev_color_to_node, combined->GetNumVertices(), nullptr);
+    std::fill_n(curr_color_to_node, combined->GetNumVertices(), nullptr);
+    gwl->Init();
+    gwl->GraphColoring(3, state->mapping, state->inverse_mapping,
+                       prev_color_to_node, curr_color_to_node);
+    gwl->VertexMatching();
+    int ub = ComputeDistance(gwl->mapping, gwl->inverse_mapping, false);
+    gwl->Deallocate();
+    if (ub < current_best) {
+      // printf("Coloring gives %d -> %d\n", current_best, ub);
+      current_best = ub;
+      if (current_best <= threshold) {
+        return;
+      }
+    }
     for (int v = 0; v < G2->GetNumVertices(); v++) {
       if (state->inverse_mapping[v] != -1)
         continue;
@@ -168,6 +183,40 @@ public:
       child_state->ComputeLowerBound();
       child_state->mapping[u] = v;
       child_state->inverse_mapping[v] = u;
+
+      //       // Color the combined graph
+      //       GSSEntry *combined = new GSSEntry;
+      //       CombineGraphs(G1, G2, combined);
+      //       GWL *gwl = new GWL(combined);
+      //       // gwl->SetGraph(combined);
+      //       ColorTree *prev_color_to_node[combined->GetNumVertices()];
+      //       ColorTree *curr_color_to_node[combined->GetNumVertices()];
+      //       std::fill_n(prev_color_to_node, combined->GetNumVertices(),
+      //       nullptr); std::fill_n(curr_color_to_node,
+      //       combined->GetNumVertices(), nullptr); Timer coloring_timer;
+      //       coloring_timer.Start();
+      //       int mapping_array[combined->GetNumVertices()];
+      //       int inverse_mapping_array[combined->GetNumVertices()];
+      //       std::fill_n(mapping_array, combined->GetNumVertices(), -1);
+      //       std::fill_n(inverse_mapping_array, combined->GetNumVertices(),
+      //       -1); gwl->GraphColoring(2, mapping_array, inverse_mapping_array,
+      //                          prev_color_to_node, curr_color_to_node);
+      //       // gwl->debug();
+      //       gwl->VertexMatching();
+      //       coloring_timer.Stop();
+      //       coloring_time += coloring_timer.GetTime();
+      //       // gwl->debug();
+      //       std::cout << GEDSolver.ComputeDistance(gwl->mapping,
+      //       gwl->inverse_mapping,
+      //                                              false)
+      //                 << std::endl;
+      //       gwl->Deallocate();
+      // #ifdef DEBUG_COLORING
+      //       gwl->debug();
+      // #endif
+      //       delete combined;
+      //       delete gwl;
+
       LSadebugger.log("Generate Child State", 1, 2);
       LSadebugger.log(child_state->to_string(), 1, 2);
       if (depth == G1->GetNumVertices() - 1) {
@@ -182,8 +231,9 @@ public:
     }
   }
 
-  int GED() {
-    PrepareGED();
+  int GED(GSSEntry *combined, GWL *gwl, ColorTree **prev_color_to_node,
+          ColorTree **curr_color_to_node) {
+    PrepareGED(combined);
     State *initial_state = new State(NULL);
     initial_state->cost = 0;
     initial_state->vertex_label_bound = 0;
@@ -224,7 +274,7 @@ public:
       }
       LSadebugger.log("Current QueueTop State", 1);
       LSadebugger.log(current_state->to_string(), 1);
-      ExtendState(current_state);
+      ExtendState(current_state, gwl, prev_color_to_node, curr_color_to_node);
       max_qsize = std::max(max_qsize, (int64_t)queue.size());
     }
     if (threshold >= 0 and current_best > threshold) {
@@ -234,6 +284,58 @@ public:
     log.AddResult("AStarNodes", num_nodes, RESULT_INT64);
     log.AddResult("EditDistance", current_best, RESULT_INT);
     return current_best;
+  }
+
+  int ComputeDistance(std::vector<int> &mapping,
+                      std::vector<int> &inverse_mapping, bool verbose = false) {
+    int cost = 0;
+    // vertex re-labeling cost
+    for (int i = 0; i < G1->GetNumVertices(); i++) {
+      int l1 = G1->GetVertexLabel(i);
+      int l2 = G2->GetVertexLabel(mapping[i]);
+      if (l1 != l2) {
+        if (verbose)
+          printf("Vertex %d(%d)-%d(%d) re-labeling cost!\n", i, l1, mapping[i],
+                 l2);
+        cost++;
+      }
+    }
+    if (verbose)
+      printf("#Missing Vertices: %d\n",
+             (G2->GetNumVertices() - G1->GetNumVertices()));
+    cost += (G2->GetNumVertices() - G1->GetNumVertices());
+    for (auto &[u, v] : G1->GetEdges()) {
+      int fu = mapping[u], fv = mapping[v];
+      int l1 = G1->GetEdgeLabel(u, v);
+      int l2 = G2->GetEdgeLabel(fu, fv);
+      if (l1 != l2) {
+        if (verbose)
+          printf("Edge (%d, %d)(%d)-(%d, %d)(%d) re-labeling cost!\n", u, v, l1,
+                 fu, fv, l2);
+        cost++;
+      }
+    }
+    for (auto &[u, v] : G2->GetEdges()) {
+      int inv_u = inverse_mapping[u], inv_v = inverse_mapping[v];
+      if (inv_u == -1 || inv_v == -1) {
+        if (verbose)
+          printf("Edge (%d, %d) in G2 is nonexistent as G1 is (%d, %d)\n", u, v,
+                 inv_u, inv_v);
+        cost++;
+      } else {
+        int l = G1->GetEdgeLabel(inv_u, inv_v);
+        if (l == -1) {
+          if (verbose)
+            printf("Edge (%d, %d) in G2 is nonexistent as G1 is (%d, %d)\n", u,
+                   v, inv_u, inv_v);
+          cost++;
+        }
+      }
+    }
+    if (verbose)
+      printf("Total ED Cost: %d\n", cost);
+    // current_best = std::min(cost, current_best);
+    return cost;
   }
 };
 } // namespace GraphLib::GraphSimilarity

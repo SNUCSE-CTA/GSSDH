@@ -7,14 +7,16 @@
 #include "GraphSimilaritySearch.h"
 #include "State.h"
 #include "WeisfeilerLehman.h"
+#include "GraphSimilarity/GraphColoring/GWL.h"
+#include "Base/DynamicHungarian.h"
 
 namespace GraphLib::GraphSimilarity {
 bool verbosity = true;
 static int32_t LOG_EVERY = 50000;
 
 class GraphEditDistanceSolver {
- protected:
-  GSSEntry *G1, *G2;
+protected:
+  GSSEntry *G1, *G2, *combined;
   int threshold = -1, current_best = 1e9;
   int64_t num_nodes = 0;
   std::vector<int> current_best_mapping;
@@ -25,7 +27,7 @@ class GraphEditDistanceSolver {
   std::vector<int> matching_order, inv_matching_order;
   ResultLogger log;
 
- public:
+public:
   void InitializeSolver(GSSEntry *G1_, GSSEntry *G2_, int threshold_ = -1) {
     log.clear();
     current_best = 1e9;
@@ -56,8 +58,10 @@ class GraphEditDistanceSolver {
       vlabel_diff->update(l, t);
     for (auto &[l, t] : G1->GetVertexLabelFrequency())
       vlabel_diff->update(l, -t);
-    for (auto &[l, t] : G1->GetEdgeLabelFrequency()) elabel_diff->update(l, t);
-    for (auto &[l, t] : G2->GetEdgeLabelFrequency()) elabel_diff->update(l, -t);
+    for (auto &[l, t] : G1->GetEdgeLabelFrequency())
+      elabel_diff->update(l, t);
+    for (auto &[l, t] : G2->GetEdgeLabelFrequency())
+      elabel_diff->update(l, -t);
     int cost = 0;
     cost = vlabel_diff->GetDifference() + elabel_diff->GetDifference();
     return cost;
@@ -70,8 +74,10 @@ class GraphEditDistanceSolver {
     for (int i = 0; i < G1->GetNumVertices(); i++) {
       int a = (i >= G2->GetNumVertices()) ? 0 : g1_deg[i];
       int b = g2_deg[i];
-      if (a > b) pos += (a - b);
-      if (a < b) neg += (b - a);
+      if (a > b)
+        pos += (a - b);
+      if (a < b)
+        neg += (b - a);
     }
     return (pos + 1) / 2 + (neg + 1) / 2;
   }
@@ -99,10 +105,14 @@ class GraphEditDistanceSolver {
   }
 
   bool GEDVerificiationFiltering() {
-    if (NaiveCountBound() > threshold) return false;
-    if (LabelSetDifferenceBound() > threshold) return false;
-    if (DegreeSequenceBound() > threshold) return false;
-    if (BranchBound() > threshold) return false;
+    if (NaiveCountBound() > threshold)
+      return false;
+    if (LabelSetDifferenceBound() > threshold)
+      return false;
+    if (DegreeSequenceBound() > threshold)
+      return false;
+    if (BranchBound() > threshold)
+      return false;
     return true;
   }
 
@@ -134,7 +144,8 @@ class GraphEditDistanceSolver {
       weighted_queue.pop();
       matching_order.push_back(u);
       for (int x : G1->GetNeighbors(u)) {
-        if (T[x] == 1) continue;
+        if (T[x] == 1)
+          continue;
         T[x] = 1;
         weighted_queue.push({w[x], x});
       }
@@ -159,16 +170,19 @@ class GraphEditDistanceSolver {
     }
     int num_u_edges = 0;
     for (int u_nbr : G1->GetNeighbors(u)) {
-      if (parent_state->mapping[u_nbr] != -1) num_u_edges++;
+      if (parent_state->mapping[u_nbr] != -1)
+        num_u_edges++;
     }
     int ec = num_u_edges;
     for (int vprime : G2->GetNeighbors(v)) {
       int uprime = parent_state->inverse_mapping[vprime];
-      if (uprime == -1) continue;
+      if (uprime == -1)
+        continue;
       ec++;
       int l1 = G1->GetEdgeLabel(u, uprime);
       int l2 = G2->GetEdgeLabel(v, vprime);
-      if (l1 == -1) continue;
+      if (l1 == -1)
+        continue;
       if (l1 == l2)
         ec -= 2;
       else
@@ -178,7 +192,7 @@ class GraphEditDistanceSolver {
     return cost;
   }
 
-  void PrepareGED() {
+  void PrepareGED(GSSEntry *combined_) {
     NumG1Vertices = G1->GetNumVertices();
     NumG2Vertices = G2->GetNumVertices();
     matching_order.clear();
@@ -187,6 +201,7 @@ class GraphEditDistanceSolver {
     current_best_mapping.resize(G1->GetNumVertices(), -1);
     num_nodes = 0;
     current_best = 1e9;
+    combined = combined_;
   }
 
   virtual int GED() { return 0; };
@@ -197,10 +212,12 @@ class GraphEditDistanceSolver {
     DifferenceVector diff;
     diff.init(20);
     for (int u = 0; u < G1->GetNumVertices(); u++) {
-      if (state->mapping[u] == -1) rem_left.emplace_back(u);
+      if (state->mapping[u] == -1)
+        rem_left.emplace_back(u);
     }
     for (int v = 0; v < G2->GetNumVertices(); v++) {
-      if (state->inverse_mapping[v] == -1) rem_right.emplace_back(v);
+      if (state->inverse_mapping[v] == -1)
+        rem_right.emplace_back(v);
     }
 
     for (int v_idx = 0; v_idx < rem_right.size(); v_idx++) {
@@ -252,8 +269,6 @@ class GraphEditDistanceSolver {
         branch_distance_matrix[u_idx][v_idx] = from_null;
     }
   }
-
-
 
   int ComputeDistance(std::vector<int> &mapping, bool verbose = false) {
     std::vector<int> inverse_mapping(G2->GetNumVertices(), -1);
@@ -309,7 +324,8 @@ class GraphEditDistanceSolver {
         }
       }
     }
-    if (verbose) printf("Total ED Cost: %d\n", cost);
+    if (verbose)
+      printf("Total ED Cost: %d\n", cost);
     current_best = std::min(cost, current_best);
     return cost;
   }
@@ -348,4 +364,4 @@ class GraphEditDistanceSolver {
     return cost;
   }
 };
-}  // namespace GraphLib::GraphSimilarity
+} // namespace GraphLib::GraphSimilarity

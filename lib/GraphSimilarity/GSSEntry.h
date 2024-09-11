@@ -98,11 +98,13 @@ public:
     combined_index = g1->GetNumVertices();
     num_vertex_labels =
         std::max(g1->GetNumVertexLabels(), g2->GetNumVertexLabels());
+    num_edge_labels = std::max(g1->GetNumEdgeLabels(), g2->GetNumEdgeLabels());
     num_vertex = g1->GetNumVertices() + g2->GetNumVertices();
     adj_matrix.resize(num_vertex, std::vector<int>(num_vertex, -1));
     num_edge = g1->GetNumEdges() + g2->GetNumEdges();
     adj_list.resize(num_vertex);
     vertex_label.resize(num_vertex);
+    vertex_color.resize(num_vertex);
     edge_label.resize(num_edge);
     for (int i = 0; i < g1->GetNumVertices(); i++)
       vertex_label[i] = g1->GetVertexLabel(i);
