@@ -25,6 +25,7 @@ class AStarDH : public GraphEditDistanceSolver {
   // Timer hg_timer;
   double hungarian_time = 0.0, branchdistance_time = 0.0;
   int64_t hungarian_vertex_num = 0;
+  int64_t functioncall = 0;
 /*from hungarian*/
   const int INF = 1e9;
   std::vector<int> assignment, inverse_assignment;
@@ -310,6 +311,7 @@ void ChangeCost(int i, int j, int newCost, std::vector<std::vector<int>>& cost_m
     initial_state->cost = 0;
     initial_state->depth = -1;
 
+    functioncall = 0;
     hungarian_time = 0.0;
     branchdistance_time = 0.0;
     auto [lb, ub] = DHLowerBound(initial_state);
@@ -720,13 +722,26 @@ std::pair<int, int>DHLowerBound(DHState *state){
         for(int i = 0 ; i < G1->GetNumVertices(); i++){if(state->mapping[i] == -1){remain_left.emplace_back(i);}}
         for(int i = G1->GetNumVertices(); i < G2->GetNumVertices();i++){remain_left.emplace_back(i);}
         for(int i = 0 ; i < G2->GetNumVertices(); i++){if(state->inverse_mapping[i] == -1){remain_right.emplace_back(i);}}
-
-        // std::cout << state->alpha << "\n";
-        // std::cout << state->beta << "\n";
-
+          // for(int i = 0 ; i < N;i++){
+          //       std::cout << "alpha[" << i << "] " << state->alpha[i] << " | ";
+          //       for(int j = 0 ; j < N ; j++){
+          //           std::cout << state->matrix[i][j] << " ";
+          //       }
+          //       std::cout << "\n";
+          //   }
+        
         hg_timer.Start();
         SolvePartial_p(state, remain_left, remain_right);
         hg_timer.Stop();
+
+            // for(int i = 0 ; i < N;i++){
+            //     std::cout << "alpha[" << i << "] " << state->alpha[i] << " | ";
+            //     for(int j = 0 ; j < N ; j++){
+            //         std::cout << state->matrix[i][j] << " ";
+            //     }
+            //     std::cout << "\n";
+            // }
+        // exit(0);
         hungarian_time += hg_timer.GetTime();
         state->hungarian_assignment = assignment;
         std::vector<int> hungarian_mapping(G1->GetNumVertices(), -1);
@@ -741,6 +756,7 @@ std::pair<int, int>DHLowerBound(DHState *state){
                 hungarian_inverse_mapping[v_] = u_;
             }
         }
+
         ub = ComputeDistance(hungarian_mapping, hungarian_inverse_mapping);
         lb = state->cost + ((total_cost + 1) / 2);
     }
@@ -769,12 +785,14 @@ std::pair<int, int>DHLowerBound(DHState *state){
     branchdistance_time += bd_timer.GetTime();
     Hungarian hungarian(branch_distance_matrix);
 
-    Timer hg_timer;
-    hg_timer.Start();
-    hungarian_vertex_num += remaining;
+    // Timer hg_timer;
+    // hg_timer.Start();
+    // hungarian_vertex_num += remaining;
     hungarian.Solve();
-    hg_timer.Stop();
-    hungarian_time += hg_timer.GetTime();
+    hungarian_time += hungarian.GetTime();
+    functioncall += hungarian.GetCnt();
+    // hg_timer.Stop();
+    // hungarian_time += hg_timer.GetTime();
 
 
     if (DEBUG) hungarian.Print();
@@ -840,6 +858,7 @@ std::pair<int, int>DHLowerBound(DHState *state){
 double Gethgtime() const {return hungarian_time; }
 double Getbdtime()const {return branchdistance_time; }
 int64_t GetVertNum()const {return hungarian_vertex_num;}
+int64_t GetCnt() const {return functioncall;}
 
 int TotalCost(DHState *state){
     int total_cost = 0;

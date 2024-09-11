@@ -22,6 +22,8 @@ class Hungarian {
   std::vector<int> changed_vertex; //for dynamic
   int total_cost, N, theta;
   bool dbg = 0;
+  int64_t functioncall = 0;
+  double hgtime = 0.0;
 
  public:
   void InitializeSolver() {
@@ -68,15 +70,18 @@ class Hungarian {
   }
 
   bool FindAugmentingPath(int i) {
+    // functioncall++;
     left_visited[i] = true;
     for (int j = 0; j < N; j++) {
       if (right_visited[j]) continue;
       if (alpha[i] + beta[j] != cost_matrix[i][j]) continue;
+      //functioncall++;
       right_visited[j] = true;
       if (inverse_assignment[j] == -1 ||
           FindAugmentingPath(inverse_assignment[j])) {
         inverse_assignment[j] = i;
         assignment[i] = j;
+        // functioncall++;
         return true;
       }
     }
@@ -84,12 +89,14 @@ class Hungarian {
   }
 
   void RecalculatePotential() {
+    // functioncall++;
     theta = INF;
     for (int i = 0; i < N; i++) {
       if (left_visited[i]) {
         for (int j = 0; j < N; j++) {
           if (!right_visited[j]) {
             theta = std::min(theta, cost_matrix[i][j] - alpha[i] - beta[j]);
+            // functioncall++;
           }
         }
       }
@@ -110,16 +117,24 @@ class Hungarian {
     // double pt = 0.0;
     InitializeVariables();
     for (int i = 0; i < N; i++) {
-      Timer p;
+      functioncall++;
       while (true) {
 
         std::fill(left_visited.begin(), left_visited.end(), 0);
         std::fill(right_visited.begin(), right_visited.end(), 0);
-        if (FindAugmentingPath(i)) break;
-                // p.Start();
+        Timer p;
+        p.Start();
+        bool flag = FindAugmentingPath(i);
+        p.Stop();
+        hgtime += p.GetTime(); 
+        if (flag) break;                      
+  
+        // Timer p;
+        // p.Start();
         RecalculatePotential();
-        //         p.Stop();
-        // pt+= p.GetTime();
+
+        //     p.Stop();
+        // hgtime += p.GetTime(); 
       }
     }
     total_cost = 0;
@@ -285,6 +300,8 @@ void ChangeCost(int i, int j, int newCost){
 
   std::vector<std::vector<int>>& GetMatrix(){return cost_matrix; }
   int GetTotalCost() { return total_cost; }
+  int64_t GetCnt(){return functioncall; }
+  double GetTime(){return hgtime; }
 
   int AssignedWeight(int i) { return cost_matrix[i][assignment[i]]; }
 
