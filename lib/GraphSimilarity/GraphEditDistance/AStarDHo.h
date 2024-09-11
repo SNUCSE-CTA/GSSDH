@@ -531,7 +531,7 @@ class AStarDHo : public GraphEditDistanceSolver{
     }
     
     int GED(){
-        PrepareGED();
+        PrepareGED(nullptr);
         DHoState* initial_state = new DHoState(NULL);
         hgtime = 0.0;
         bdtime = 0.0;
