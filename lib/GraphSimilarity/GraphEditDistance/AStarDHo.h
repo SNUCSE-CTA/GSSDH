@@ -114,7 +114,7 @@ class AStarDHo : public GraphEditDistanceSolver{
 				acc -= theta;
 		}
     }
-  
+
     void Solve(const std::vector<std::vector<int>>& cost_matrix, DHoState *state, std::vector<int>&rem_left, std::vector<int>&rem_right){
 
 		acc = 0;
@@ -143,10 +143,9 @@ class AStarDHo : public GraphEditDistanceSolver{
             functioncall++;
 
 			while (true) {
-				int tau = 5;
             	int lb = state->cost + ((acc + 1) / 2);
 				// if (false) {
-				if (lb > tau) {
+				if (lb > threshold) {
 					total_cost = 500;
 					for (int i = 0; i < N; ++i) {
 						assignment[i] = inverse_assignment[i] = i;
@@ -567,7 +566,7 @@ class AStarDHo : public GraphEditDistanceSolver{
     }
     
     int GED(){
-        PrepareGED(nullptr);
+        PrepareGED();
         DHoState* initial_state = new DHoState(NULL);
         hgtime = 0.0;
         bdtime = 0.0;
