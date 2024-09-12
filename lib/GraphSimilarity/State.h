@@ -3,16 +3,15 @@
 
 static int NumG1Vertices = 0, NumG2Vertices = 0;
 struct State {
-  State* parent = NULL;
+  State *parent = NULL;
   int id = 0, next_mapping_order = -1;
   int cost = 0, depth = -1, lower_bound = 0;
   int vertex_label_bound = 0, inner_edge_label_bound = 0,
       cross_edge_label_bound = 0;
-  int* mapping;
-  int* inverse_mapping;
-
+  int *mapping;
+  int *inverse_mapping;
   static int global_state_id;
-  State(State* p, int c = -1, int d = -1) {
+  State(State *p, int c = -1, int d = -1) {
     id = global_state_id++;
     parent = p;
     cost = c;
@@ -34,7 +33,7 @@ struct State {
   };
 
   // Copy constructor
-  State(const State& other) {
+  State(const State &other) {
     id = global_state_id++;
     parent = other.parent;
     next_mapping_order = other.next_mapping_order;
@@ -58,8 +57,9 @@ struct State {
   }
 
   // Assignment operator
-  State& operator=(const State& other) {
-    if (this == &other) return *this;
+  State &operator=(const State &other) {
+    if (this == &other)
+      return *this;
 
     // Free existing memory
     delete[] mapping;
@@ -107,7 +107,7 @@ struct State {
 };
 
 struct StateComparator {
-  bool operator()(const State* a, const State* b) const {
+  bool operator()(const State *a, const State *b) const {
     if (a->lower_bound == b->lower_bound) {
       if (a->depth == b->depth) {
         return a->id < b->id;

@@ -114,7 +114,7 @@ class AStarDHo : public GraphEditDistanceSolver{
 				acc -= theta;
 		}
     }
-
+  
     void Solve(const std::vector<std::vector<int>>& cost_matrix, DHoState *state, std::vector<int>&rem_left, std::vector<int>&rem_right){
 
 		acc = 0;
@@ -567,7 +567,7 @@ class AStarDHo : public GraphEditDistanceSolver{
     }
     
     int GED(){
-        PrepareGED();
+        PrepareGED(nullptr);
         DHoState* initial_state = new DHoState(NULL);
         hgtime = 0.0;
         bdtime = 0.0;
