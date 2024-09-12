@@ -146,7 +146,7 @@ class AStarDHo : public GraphEditDistanceSolver{
             	int lb = state->cost + ((acc + 1) / 2);
 				// if (false) {
 				if (lb > threshold) {
-					total_cost = 500;
+					total_cost = 2*threshold + 1;
 					for (int i = 0; i < N; ++i) {
 						assignment[i] = inverse_assignment[i] = i;
 					}
