@@ -85,8 +85,8 @@ public:
     ColorTree **prev_color_to_node = new ColorTree *[1000];
     ColorTree **curr_color_to_node = new ColorTree *[1000];
     for (auto &q : query_graphs) {
-      fprintf(stderr, "Processing query %d\n", q_index++);
-      fprintf(stderr, "Query id: %d\n", q->GetId());
+      // fprintf(stderr, "Processing query %d\n", q_index++);
+      // fprintf(stderr, "Query id: %d\n", q->GetId());
       RetrieveSimilarGraphs(q, tau, gwl, prev_color_to_node,
                             curr_color_to_node);
     }
@@ -96,8 +96,8 @@ public:
 #endif
 #ifdef CC
     for (auto &q : query_graphs) {
-      fprintf(stderr, "Processing query %d\n", q_index++);
-      fprintf(stderr, "Query id: %d\n", q->GetId());
+      // fprintf(stderr, "Processing query %d\n", q_index++);
+      // fprintf(stderr, "Query id: %d\n", q->GetId());
       RetrieveSimilarGraphs(q, tau, nullptr, nullptr, nullptr);
     }
 #endif
@@ -255,11 +255,11 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
   }
   total_candidates += num_candidates;
   total_filtered += num_filtered;
-  fprintf(stderr, "Filtered %d out of %lu graphs\n", num_filtered,
-          data_graphs.size());
-  fprintf(stderr, "Coloring time = %.6lf\n", coloring_time);
-  fprintf(stderr, "Filtering time = %.6lf\n", filtering_time);
-  fprintf(stderr, "Verifying time = %.6lf\n", verifying_time);
+  // fprintf(stderr, "Filtered %d out of %lu graphs\n", num_filtered,
+  //         data_graphs.size());
+  // fprintf(stderr, "Coloring time = %.6lf\n", coloring_time);
+  // fprintf(stderr, "Filtering time = %.6lf\n", filtering_time);
+  // fprintf(stderr, "Verifying time = %.6lf\n", verifying_time);
 }
 
 int GraphSimilaritySearch::BranchBound(int data_idx) {
