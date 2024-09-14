@@ -40,6 +40,7 @@ public:
   std::vector<int> __left;
   std::vector<int> __right1, __right2;
 
+  int acc = 0;
   int64_t functioncall = 0;
 
   double hgtime = 0.0;
@@ -83,6 +84,14 @@ public:
     ui *prev = new ui[n];
     ui *queue = new ui[n];
 
+    acc = 0;
+    for(int i = 0 ; i < n; i++){
+      acc += alpha[i];
+    }
+    for(int j = 0 ; j < n; j++){
+      acc += beta[j];
+    }
+
     if (initialization) { // Initialization
       memset(mx, -1, sizeof(int) * n);
       memset(my, -1, sizeof(int) * n);
@@ -104,6 +113,14 @@ public:
 
     for (int u = n - 1; u >= 0; u--)
       if (mx[u] == -1) { // Augmentation
+        int lb = state->cost + ((acc + 1)/ 2);
+        if(lb > threshold){
+          total_cost = 2 * threshold + 1;
+          for(int i = 0 ; i < n; i++){
+            assignment[i] = inverse_assignment[i] = i;
+          }
+          return total_cost;
+        }
         memset(visX, 0, sizeof(char) * n);
         memset(visY, 0, sizeof(char) * n);
         int q_n = 1;
@@ -151,10 +168,14 @@ public:
             if (!visY[i] && slack[i] < delta)
               delta = slack[i];
           for (ui i = 0; i < n; i++) {
-            if (visX[i])
+            if (visX[i]){
               lx[i] += delta;
-            if (visY[i])
+              acc += delta;
+            }
+            if (visY[i]){
               ly[i] -= delta;
+              acc -= delta;
+            }
             else
               slack[i] -= delta;
           }
@@ -837,7 +858,7 @@ public:
       ExtendState(current_state);
       max_qsize = std::max(max_qsize, (int64_t)queue.size());
     }
-    fprintf(stderr, "States_size = %d\n", states.size());
+    // fprintf(stderr, "States_size = %d\n", states.size());
     for (int i = 0; i < states.size(); i++) {
       delete states[i];
     }
