@@ -25,6 +25,8 @@ class AStarDHo : public GraphEditDistanceSolver{
     std::vector<int> __left;
     std::vector<int> __right1, __right2;
 
+	int acc = 0;
+
     int64_t functioncall = 0;
     
     double hgtime = 0.0;
@@ -45,15 +47,33 @@ class AStarDHo : public GraphEditDistanceSolver{
         state->alpha = std::vector<int>(N, 0);
         state->beta = std::vector<int>(N, INF);
         theta = 0;
-        for(int i = 0; i < N; i++){
-            for(int j = 0 ; j < N; j++){
+        for (int i = 0; i < N; i++){
+            for (int j = 0; j < N; j++){
                 state->beta[j] = std::min(state->beta[j], state->matrix[i][j]);
             }
         }
         alpha = state->alpha;
         beta = state->beta;
-    }
 
+		// for (int i = 0; i < N; ++i) {
+		// 	for (int j = 0; j < N; ++j) {
+		// 		std::cerr << state->matrix[i][j] << " ";
+		// 	}
+		// 	std::cerr << std::endl;
+		// }
+
+		// std::cerr << "a: ";
+		// for (int i = 0; i < N; ++i) {
+		// 	std::cerr << alpha[i] << " ";
+		// }
+		// std::cerr << std::endl;
+		// std::cerr << "b: ";
+		// for (int i = 0; i < N; ++i) {
+		// 	std::cerr << beta[i] << " ";
+		// }
+		// std::cerr << std::endl;
+		// std::cerr << std::endl;
+    }
 
 using ui = unsigned int;
 int Hungarian(char initialization, ui n, std::vector<std::vector<int>>& cost_matrix, DHoState * state, std::vector<int>& rem_left, std::vector<int>& rem_right) {
@@ -207,56 +227,40 @@ int Hungarian(char initialization, ui n, std::vector<std::vector<int>>& cost_mat
         __left.push_back(i);
 
         for (int j = 0; j < N; j++) {
-            if (__builtin_expect(right_visited[j], true)) continue;
-        
-        //for (int jdx = 0; jdx < (int)__right2.size(); ++jdx) {
-        //    int j = __right2[jdx];
+            if (__builtin_expect(right_visited[j], true)) {
+				continue;
+			}
 
             if (__builtin_expect(alpha[i] + beta[j] != cost_matrix[i][j], true)) continue;
-            // functioncall++;
             right_visited[j] = true;
             __right1.push_back(j);
-            //__right2[jdx] = __right2.back(); --jdx;
-            //__right2.pop_back();
 
-            if (inverse_assignment[j] == -1 ||FindAugmentingPath(inverse_assignment[j], cost_matrix)) {
+            if (inverse_assignment[j] == -1 || FindAugmentingPath(inverse_assignment[j], cost_matrix)) {
                 inverse_assignment[j] = i;
                 assignment[i] = j;
-                // functioncall++;
                 return true;
             }
         }
-    return false;
-  }
+		return false;
+  	}
 
-    void RecalculatePotential(const std::vector<std::vector<int>>&  cost_matrix) {
-        // functioncall++;
+    void RecalculatePotential(const std::vector<std::vector<int>>& cost_matrix) {
         theta = INF;
-        //for(int i = 0 ; i < N; i++){
-        //    if(left_visited[i]){
         for (int i: __left) {
-                for(int j = 0 ; j < N; j++){
-                    if(!right_visited[j]){
-                //for (int j: __right2)
+                for (int j = 0 ; j < N; j++) {
+                    if (!right_visited[j]) {
                         theta = std::min(theta, cost_matrix[i][j] - alpha[i] - beta[j]);
-                        // functioncall++;
                     }
                 }
         }
-        //    }
-        //}
-        //for(int i = 0 ; i < N; i++){
-        //    if(left_visited[i]){
-        for (int i: __left)
+        for (int i: __left) {
                 alpha[i] += theta;
-        //    }
-        //}
-        //for(int j = 0 ; j < N ; j++){
-        //    if(right_visited[j]){
-        for (int j: __right1)
+				acc += theta;
+		}
+        for (int j: __right1) {
                 beta[j] -= theta;
-        //    }
-        //}
+				acc -= theta;
+		}
     }
     void Solve(std::vector<std::vector<int>>& cost_matrix, DHoState *state, std::vector<int>&rem_left, std::vector<int>&rem_right){
         for(int i = N - 1 ; i >= 0; i--){
@@ -287,9 +291,9 @@ int Hungarian(char initialization, ui n, std::vector<std::vector<int>>& cost_mat
                 }
         }
         total_cost = 0;
-        for(int i = 0 ; i < N; i++){
+        for (int i = 0; i < N; i++){
             total_cost += cost_matrix[i][assignment[i]];
-            if(state->depth != -1){
+            if (state->depth != -1) {
                 int u = rem_left[i];
                 int v = rem_right[i];
                 int u_idx = u_idxs[u];
@@ -299,9 +303,9 @@ int Hungarian(char initialization, ui n, std::vector<std::vector<int>>& cost_mat
                 state->hungarian_assignment[u] = rem_right[assignment[u_idx]];
                 state->hungarian_inverse_assignment[v] = rem_left[inverse_assignment[v_idx]];
             }
-            
         }
     }
+
     void ChangeCost(int i, int j, int newCost, DHoState* state){
         int oldCost = state->matrix[i][j];
         state->matrix[i][j] = newCost;
@@ -310,6 +314,7 @@ int Hungarian(char initialization, ui n, std::vector<std::vector<int>>& cost_mat
             state->hungarian_inverse_assignment[j] = -1;
         }
     }
+
     void ComputeBranchDistanceMatrixInitial(DHoState *state){
     DifferenceVector diff;
     diff.init(20);
@@ -578,7 +583,7 @@ int Hungarian(char initialization, ui n, std::vector<std::vector<int>>& cost_mat
                 local_matrix[u_idx][v_idx] = state->matrix[u][v];
             }
         }
-                // std::cout << alpha << "\n" << beta << "\n" << assignment << "\n" << inverse_assignment << "\n";
+                 // std::cerr << alpha << "\n" << beta << "\n" << assignment << "\n" << inverse_assignment << "\n";
     }
     void LocalToState(DHoState *state, std::vector<int>& rem_left, std::vector<int>& rem_right, int &remaining){
         for(int i = 0 ; i < remaining; i++){
@@ -627,6 +632,7 @@ int Hungarian(char initialization, ui n, std::vector<std::vector<int>>& cost_mat
                 hungarian_mapping[i] = state->hungarian_assignment[i];
                 hungarian_inverse_mapping[state->hungarian_assignment[i]] = i;
             }
+
             ub = ComputeDistance(hungarian_mapping, hungarian_inverse_mapping);
             lb = state->cost + ((total_cost + 1) / 2);
             // std::cout << state->hungarian_assignment << "\n";
@@ -648,7 +654,13 @@ int Hungarian(char initialization, ui n, std::vector<std::vector<int>>& cost_mat
             std::vector<int> rem_left, rem_right;
             std::vector<std::vector<int>> local_matrix(remaining, std::vector<int>(remaining, 0));
 
+			// std::cerr << state->alpha << std::endl;
+
             ComputeReducedMatrix(state, local_matrix, rem_left, rem_right, remaining);
+
+			// std::cerr << alpha << std::endl;
+			// std::cerr << std::endl;
+
             Timer a;
             a.Start();
             // Solve(local_matrix, state, rem_left, rem_right);
@@ -705,7 +717,7 @@ int Hungarian(char initialization, ui n, std::vector<std::vector<int>>& cost_mat
     }
     
     int GED(){
-        PrepareGED();
+        PrepareGED(nullptr);
         DHoState* initial_state = new DHoState(NULL);
         hgtime = 0.0;
         bdtime = 0.0;
