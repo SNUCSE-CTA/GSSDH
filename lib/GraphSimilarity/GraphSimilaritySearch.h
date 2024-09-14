@@ -83,7 +83,8 @@ public:
     /*BMa time*/
     log.AddResult("HUNGARIAN_TIME", total_hg_time, RESULT_DOUBLE_FIXED);
     log.AddResult("BranchDistance_TIME", total_bd_time, RESULT_DOUBLE_FIXED);
-    log.AddResult("Hungarian_Vertices", total_hungarian_vertex_num, RESULT_INT64);
+    log.AddResult("Hungarian_Vertices", total_hungarian_vertex_num,
+                  RESULT_INT64);
     log.AddResult("DFS_depth_cnt", total_dfs_cnt, RESULT_INT64);
   }
 
