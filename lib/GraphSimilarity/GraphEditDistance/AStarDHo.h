@@ -12,8 +12,26 @@ struct DHoState : State{
     std::vector<int> alpha, beta;
 };
 
+std::vector<DHoState*> states;
+
 class AStarDHo : public GraphEditDistanceSolver{
-    std::priority_queue<DHoState*, std::vector<DHoState*>, StateComparator> queue;
+public:
+    
+
+    struct StateIndexComparator {
+    bool operator()(const int a, const int b) const {
+        if (states[a]->lower_bound == (states[b])->lower_bound) {
+        if (states[a]->depth == states[b]->depth) {
+            return states[a]->id < states[b]->id;
+        }
+        return states[a]->depth < states[b]->depth;
+        }
+        return states[a]->lower_bound > states[b]->lower_bound;
+    }
+    };
+
+
+    std::priority_queue<int, std::vector<int>, StateIndexComparator> queue;
     const int INF = 1e9;
 
     std::vector<int> assignment, inverse_assignment;
@@ -700,7 +718,9 @@ int Hungarian(char initialization, ui n, std::vector<std::vector<int>>& cost_mat
             if(threshold > 0){
                 if(child_state->lower_bound > threshold) continue;
             }
-            queue.push(child_state);
+            states.emplace_back(child_state);
+            // num_nodes++;
+            queue.push(states.size()-1);
         }
     }
     
@@ -715,30 +735,37 @@ int Hungarian(char initialization, ui n, std::vector<std::vector<int>>& cost_mat
         initial_state->depth = -1;
         auto [lb, ub] = DHoLowerBound(initial_state);
         initial_state->lower_bound = lb;
-        queue.push(initial_state);
+        // num_nodes++;
+            states.emplace_back(initial_state);
+        queue.push(states.size()-1);
         int64_t max_qsize = 1;
         while(!queue.empty()){
-            DHoState* current_state = queue.top();
+            DHoState* current_state = states[queue.top()];
             num_nodes++;
             queue.pop();
             if(current_state->lower_bound >= current_best){
-                queue = std::priority_queue<DHoState*, std::vector<DHoState*>, StateComparator>();
+                queue = std::priority_queue<int, std::vector<int>, StateIndexComparator>();
                 break;
             }
             if(threshold >= 0){
                 if(current_best < threshold){
-                    queue = std::priority_queue<DHoState*, std::vector<DHoState*>, StateComparator>();
+                    queue = std::priority_queue<int, std::vector<int>, StateIndexComparator>();
                     break;
                 }
                 if(current_state->lower_bound > threshold){
                     current_best = -1;
-                    queue = std::priority_queue<DHoState*, std::vector<DHoState*>, StateComparator>();
+                    queue = std::priority_queue<int, std::vector<int>, StateIndexComparator>();
                     break;
                 }
             }
             ExtendState(current_state);
+            delete current_state;
             max_qsize = std::max(max_qsize, (int64_t)queue.size());
         }
+        for (int i = 0; i < states.size(); i++) {
+            delete states[i];
+        }
+        states.clear();
         if(threshold >= 0 and current_best > threshold){
             current_best = -1;
         }
