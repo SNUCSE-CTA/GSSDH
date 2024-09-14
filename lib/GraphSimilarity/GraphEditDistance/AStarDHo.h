@@ -84,7 +84,8 @@ int Hungarian(char initialization, ui n, std::vector<std::vector<int>>& cost_mat
 		}
 	}
 
-	for(ui u = 0;u < n;u ++) if(mx[u] == -1) { //Augmentation
+    for(int u = n - 1; u  >= 0 ; u--) 
+    if(mx[u] == -1) { //Augmentation
 		memset(visX, 0, sizeof(char)*n);
 		memset(visY, 0, sizeof(char)*n);
 		int q_n = 1;
