@@ -116,7 +116,7 @@ class Hungarian {
  void Solve() {
     // double pt = 0.0;
     InitializeVariables();
-    for (int i = 0; i < N; i++) {
+    for(int i = 0; i < N; i++){
       // functioncall++;
       while (true) {
 
