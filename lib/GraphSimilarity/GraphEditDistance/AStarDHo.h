@@ -25,6 +25,8 @@ class AStarDHo : public GraphEditDistanceSolver{
     std::vector<int> __left;
     std::vector<int> __right1, __right2;
 
+	int acc = 0;
+
     int64_t functioncall = 0;
     
     double hgtime = 0.0;
@@ -45,119 +47,144 @@ class AStarDHo : public GraphEditDistanceSolver{
         state->alpha = std::vector<int>(N, 0);
         state->beta = std::vector<int>(N, INF);
         theta = 0;
-        for(int i = 0; i < N; i++){
-            for(int j = 0 ; j < N; j++){
+        for (int i = 0; i < N; i++){
+            for (int j = 0; j < N; j++){
                 state->beta[j] = std::min(state->beta[j], state->matrix[i][j]);
             }
         }
         alpha = state->alpha;
         beta = state->beta;
+
+		// for (int i = 0; i < N; ++i) {
+		// 	for (int j = 0; j < N; ++j) {
+		// 		std::cerr << state->matrix[i][j] << " ";
+		// 	}
+		// 	std::cerr << std::endl;
+		// }
+
+		// std::cerr << "a: ";
+		// for (int i = 0; i < N; ++i) {
+		// 	std::cerr << alpha[i] << " ";
+		// }
+		// std::cerr << std::endl;
+		// std::cerr << "b: ";
+		// for (int i = 0; i < N; ++i) {
+		// 	std::cerr << beta[i] << " ";
+		// }
+		// std::cerr << std::endl;
+		// std::cerr << std::endl;
     }
 
-    // bool FindAugmentingPath(int i, std::vector<std::vector<int>>& cost_matrix){
-    //     functioncall++;
-    //     left_visited[i] = true;
-    //     for(int j = 0 ; j < N; j++){
-    //         if(!right_visited[j] &&(alpha[i] + beta[j] == cost_matrix[i][j])){
-    //             right_visited[j] = true;
-    //             if(inverse_assignment[j] == -1 || FindAugmentingPath(inverse_assignment[j], cost_matrix)){
-    //                 inverse_assignment[j] = i;
-    //                 assignment[i] = j;
-    //                 return true;
-    //             }
-    //         }
-    //     }
-    //     return false;
-    // }
     bool FindAugmentingPath(int i, const std::vector<std::vector<int>>& cost_matrix) {
-        functioncall++;
-        // left_visited[i] = true;
         __left.push_back(i);
 
         for (int j = 0; j < N; j++) {
-            if (__builtin_expect(right_visited[j], true)) continue;
-        
-        //for (int jdx = 0; jdx < (int)__right2.size(); ++jdx) {
-        //    int j = __right2[jdx];
+            if (__builtin_expect(right_visited[j], true)) {
+				continue;
+			}
 
             if (__builtin_expect(alpha[i] + beta[j] != cost_matrix[i][j], true)) continue;
-            // functioncall++;
             right_visited[j] = true;
             __right1.push_back(j);
-            //__right2[jdx] = __right2.back(); --jdx;
-            //__right2.pop_back();
 
-            if (inverse_assignment[j] == -1 ||FindAugmentingPath(inverse_assignment[j], cost_matrix)) {
+            if (inverse_assignment[j] == -1 || FindAugmentingPath(inverse_assignment[j], cost_matrix)) {
                 inverse_assignment[j] = i;
                 assignment[i] = j;
-                // functioncall++;
                 return true;
             }
         }
-    return false;
-  }
+		return false;
+  	}
 
-    void RecalculatePotential(const std::vector<std::vector<int>>&  cost_matrix) {
-        // functioncall++;
+    void RecalculatePotential(const std::vector<std::vector<int>>& cost_matrix) {
         theta = INF;
-        //for(int i = 0 ; i < N; i++){
-        //    if(left_visited[i]){
         for (int i: __left) {
-                for(int j = 0 ; j < N; j++){
-                    if(!right_visited[j]){
-                //for (int j: __right2)
+                for (int j = 0 ; j < N; j++) {
+                    if (!right_visited[j]) {
                         theta = std::min(theta, cost_matrix[i][j] - alpha[i] - beta[j]);
-                        // functioncall++;
                     }
                 }
         }
-        //    }
-        //}
-        //for(int i = 0 ; i < N; i++){
-        //    if(left_visited[i]){
-        for (int i: __left)
+        for (int i: __left) {
                 alpha[i] += theta;
-        //    }
-        //}
-        //for(int j = 0 ; j < N ; j++){
-        //    if(right_visited[j]){
-        for (int j: __right1)
+				acc += theta;
+		}
+        for (int j: __right1) {
                 beta[j] -= theta;
-        //    }
-        //}
+				acc -= theta;
+		}
     }
-    void Solve(std::vector<std::vector<int>>& cost_matrix, DHoState *state, std::vector<int>&rem_left, std::vector<int>&rem_right){
-        for(int i = N - 1 ; i >= 0; i--){
-            if(assignment[i] != -1) continue;
-            // functioncall ++;
-                while(true){
-                    // std::fill(left_visited.begin(), left_visited.end(), 0);
-                    std::fill(right_visited.begin(), right_visited.end(), 0);
 
-                    __left.clear();
-                    
-                    __right1.clear();
-                    //__right2.resize(N);
-                    //for (int i = 0; i < N; ++i) __right2[i] =  i;
+    void Solve(const std::vector<std::vector<int>>& cost_matrix, DHoState *state, std::vector<int>&rem_left, std::vector<int>&rem_right){
 
-                    // Timer t1;
-                    // t1.Start();
-                    bool flag = FindAugmentingPath(i, cost_matrix);
-                    // t1.Stop();
-                    // hgtime += t1.GetTime();
-                    if(flag) break;
-                    // Timer t1;
-                    // t1.Start();
+		acc = 0;
+		for (int i = 0; i < N; ++i) {
+			acc += alpha[i];
+		}
+		for (int j = 0; j < N; ++j) {
+			acc += beta[j];
+		}
 
-                    RecalculatePotential(cost_matrix);
-                    //                     t1.Stop();
-                    // hgtime += t1.GetTime();
-                }
+		/* !! alpha-descending order */
+		std::vector<std::pair<int, int>> mappingOrder;
+		mappingOrder.reserve(N);
+		for (int i = 0; i < N; ++i) {
+			if (assignment[i] == -1) {
+				mappingOrder.push_back(std::pair<int, int>{ alpha[i], i });
+			}
+		}
+		sort(mappingOrder.rbegin(), mappingOrder.rend());
+		for (const auto& [_, i]: mappingOrder) {
+		/* simple order */
+        // for (int i = 0; i < N; i++) {
+        //     if (assignment[i] != -1) {
+		// 		continue;
+		// 	}
+            functioncall++;
+
+			while (true) {
+            	int lb = state->cost + ((acc + 1) / 2);
+				// if (false) {
+				if (lb > threshold) {
+					total_cost = 2*threshold + 1;
+					for (int i = 0; i < N; ++i) {
+						assignment[i] = inverse_assignment[i] = i;
+					}
+					return;
+				}
+
+				std::fill(right_visited.begin(), right_visited.end(), 0);
+
+				__left.clear();
+				__right1.clear();
+
+				const bool failed = FindAugmentingPath(i, cost_matrix);
+				if (failed) {
+					break;
+				}
+
+				RecalculatePotential(cost_matrix);
+				// std::cerr << "alpha: ";
+				// for (int i = 0; i < N; ++i) {
+				// 	if (assignment[i] == -1) {
+				// 		std::cerr << alpha[i] << " ";
+				// 	}
+				// }
+				// std::cerr << std::endl;
+				// std::cerr << " beta: ";
+				// for (int j = 0; j < N; ++j) {
+				// 	if ( inverse_assignment[j] != -1 ) {
+				// 		std::cerr << beta[j] << " ";
+				// 	}
+				// }
+				// std::cerr << std::endl;
+
+			}
         }
         total_cost = 0;
-        for(int i = 0 ; i < N; i++){
+        for (int i = 0; i < N; i++){
             total_cost += cost_matrix[i][assignment[i]];
-            if(state->depth != -1){
+            if (state->depth != -1) {
                 int u = rem_left[i];
                 int v = rem_right[i];
                 int u_idx = u_idxs[u];
@@ -167,9 +194,9 @@ class AStarDHo : public GraphEditDistanceSolver{
                 state->hungarian_assignment[u] = rem_right[assignment[u_idx]];
                 state->hungarian_inverse_assignment[v] = rem_left[inverse_assignment[v_idx]];
             }
-            
         }
     }
+
     void ChangeCost(int i, int j, int newCost, DHoState* state){
         int oldCost = state->matrix[i][j];
         state->matrix[i][j] = newCost;
@@ -178,6 +205,7 @@ class AStarDHo : public GraphEditDistanceSolver{
             state->hungarian_inverse_assignment[j] = -1;
         }
     }
+
     void ComputeBranchDistanceMatrixInitial(DHoState *state){
     DifferenceVector diff;
     diff.init(20);
@@ -412,7 +440,7 @@ class AStarDHo : public GraphEditDistanceSolver{
                 local_matrix[u_idx][v_idx] = state->matrix[u][v];
             }
         }
-                // std::cout << alpha << "\n" << beta << "\n" << assignment << "\n" << inverse_assignment << "\n";
+                 // std::cerr << alpha << "\n" << beta << "\n" << assignment << "\n" << inverse_assignment << "\n";
     }
     void LocalToState(DHoState *state, std::vector<int>& rem_left, std::vector<int>& rem_right, int &remaining){
         for(int i = 0 ; i < remaining; i++){
@@ -460,6 +488,7 @@ class AStarDHo : public GraphEditDistanceSolver{
                 hungarian_mapping[i] = state->hungarian_assignment[i];
                 hungarian_inverse_mapping[state->hungarian_assignment[i]] = i;
             }
+
             ub = ComputeDistance(hungarian_mapping, hungarian_inverse_mapping);
             lb = state->cost + ((total_cost + 1) / 2);
         }
@@ -478,7 +507,13 @@ class AStarDHo : public GraphEditDistanceSolver{
             std::vector<int> rem_left, rem_right;
             std::vector<std::vector<int>> local_matrix(remaining, std::vector<int>(remaining, 0));
 
+			// std::cerr << state->alpha << std::endl;
+
             ComputeReducedMatrix(state, local_matrix, rem_left, rem_right, remaining);
+
+			// std::cerr << alpha << std::endl;
+			// std::cerr << std::endl;
+
             Timer a;
             a.Start();
             Solve(local_matrix, state, rem_left, rem_right);
@@ -531,7 +566,7 @@ class AStarDHo : public GraphEditDistanceSolver{
     }
     
     int GED(){
-        PrepareGED();
+        PrepareGED(nullptr);
         DHoState* initial_state = new DHoState(NULL);
         hgtime = 0.0;
         bdtime = 0.0;
