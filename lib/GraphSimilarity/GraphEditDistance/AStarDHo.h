@@ -893,5 +893,4 @@ public:
   double Getbdtime() const { return bdtime; }
   int64_t GetCnt() const { return functioncall; }
 };
-
 } // namespace GraphLib::GraphSimilarity
