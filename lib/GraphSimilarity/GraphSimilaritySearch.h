@@ -236,6 +236,7 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
 #endif
       if (ged != -1) {
         num_answer++;
+        // std::cout << "Query : "<<query->GetId() << "\n";
         // std::cout << data_idx << "\n";
       }
 #ifdef CC
