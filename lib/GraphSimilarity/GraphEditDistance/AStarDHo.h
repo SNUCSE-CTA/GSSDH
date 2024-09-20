@@ -2,6 +2,7 @@
 #include "GraphSimilarity/EditDistance.h"
 #include "Base/Timer.h"
 
+
 namespace GraphLib::GraphSimilarity {
 struct DHoState : State {
   int next_mapping_order = -1;
@@ -28,6 +29,8 @@ public:
     }
   };
 
+
+
   std::priority_queue<int, std::vector<int>, StateIndexComparator> queue;
   const int INF = 1e9;
 
@@ -39,6 +42,8 @@ public:
 
   std::vector<int> __left;
   std::vector<int> __right1, __right2;
+  std::vector<std::vector<int>> parikh1;
+  std::vector<std::vector<int>> parikh2;
 
   int acc = 0;
   int64_t functioncall = 0;
@@ -67,6 +72,10 @@ public:
     }
     alpha = state->alpha;
     beta = state->beta;
+
+	using std::vector;
+	parikh1.assign(G1->GetNumVertices(), vector<int>(std::max(G1->GetNumEdgeLabels(), G2->GetNumEdgeLabels()), 0));
+	parikh2.assign(G2->GetNumVertices(), vector<int>(std::max(G1->GetNumEdgeLabels(), G2->GetNumEdgeLabels()), 0));
   }
 
   using ui = unsigned int;
@@ -114,8 +123,8 @@ public:
     for (int u = n - 1; u >= 0; u--)
       if (mx[u] == -1) { // Augmentation
         int lb = state->cost + ((acc + 1)/ 2);
-        if(lb > threshold){
-          total_cost = 2 * threshold + 1;
+        if(lb > threshold + 1){
+          total_cost = 2 * threshold + 1000;
           for(int i = 0 ; i < n; i++){
             assignment[i] = inverse_assignment[i] = i;
           }
@@ -459,128 +468,125 @@ public:
       }
     }
   }
+
   void ComputeBranchDistanceMatrixDynamic(DHoState *state) {
-    DifferenceVector diff;
-    diff.init(20);
-    int u = matching_order[state->depth];
-    int v = state->mapping[u];
+    const int u = matching_order[state->depth];
+    const int v = state->mapping[u];
     auto &u_nbrs = G1->GetNeighbors(u);
     auto &v_nbrs = G2->GetNeighbors(v);
-    int newCost = 0;
-    std::vector<bool> row(G2->GetNumVertices(), false);
+    std::vector<bool> row(G1->GetNumVertices(), false);
     std::vector<bool> col(G2->GetNumVertices(), false);
-    std::vector<bool> u_visited(G1->GetNumVertices(), 0);
-    for (int i = 0; i < u_nbrs.size(); i++) {
-      int u_curr = u_nbrs[i];
-      u_visited[u_curr] = true; // do not compute twice
-      if (state->mapping[u_curr] != -1)
-        continue; // already mapped vertex shoud not change weight
-      for (int j = 0; j < G2->GetNumVertices(); j++) {
-        int v_curr = j;
-        if (state->inverse_mapping[v_curr] != -1)
-          continue;
-        newCost = 0;
-        auto &u_curr_nbrs = G1->GetNeighbors(u_curr);
-        diff.reset();
-        if (G1->GetVertexLabel(u_curr) != G2->GetVertexLabel(v_curr)) {
-          newCost += 2;
-        }
-        for (int l = 0; l < u_curr_nbrs.size(); l++) {
-          int u_curr_nbr = u_curr_nbrs[l];
-          int u_curr_el = G1->GetEdgeLabel(u_curr, u_curr_nbr);
-          if (state->mapping[u_curr_nbr] == -1) {
-            diff.update(u_curr_el, 1);
-          } else {
-            int v_curr_mapping_el =
-                G2->GetEdgeLabel(v_curr, state->mapping[u_curr_nbr]);
-            if (v_curr_mapping_el != u_curr_el) {
-              newCost += 2;
-            }
-          }
-        }
-        auto &v_curr_nbrs = G2->GetNeighbors(v_curr);
-        for (int r = 0; r < v_curr_nbrs.size(); r++) {
-          int v_curr_nbr = v_curr_nbrs[r];
-          int v_curr_el = G2->GetEdgeLabel(v_curr, v_curr_nbr);
-          if (state->inverse_mapping[v_curr_nbr] == -1) {
-            diff.update(v_curr_el, -1);
-          } else {
-            int u_curr_mapping_el =
-                G1->GetEdgeLabel(u_curr, state->inverse_mapping[v_curr_nbr]);
-            if (u_curr_mapping_el == -1) {
-              newCost += 2;
-            }
-          }
-        }
-        int inner_distance = diff.GetDifference();
-        newCost += inner_distance;
-        // ChangeCost(u_curr, v_curr, newCost, state);
-        state->matrix[u_curr][v_curr] = newCost;
-      }
-      row[u_curr] = true;
-    }
-    newCost = 0;
-    for (int j = 0; j < v_nbrs.size(); j++) {
-      int v_curr = v_nbrs[j];
-      if (state->inverse_mapping[v_curr] != -1)
-        continue;
-      for (int i = 0; i < G1->GetNumVertices(); i++) {
-        int u_curr = i;
-        if (state->mapping[u_curr] != -1 || u_visited[u_curr] == true)
-          continue;
-        newCost = 0;
-        auto v_curr_nbrs = G2->GetNeighbors(v_curr);
-        diff.reset();
-        if (G1->GetVertexLabel(u_curr) != G2->GetVertexLabel(v_curr)) {
-          newCost += 2;
-        }
-        auto &u_curr_nbrs = G1->GetNeighbors(u_curr);
-        for (int l = 0; l < u_curr_nbrs.size(); l++) {
-          int u_curr_nbr = u_curr_nbrs[l];
-          int u_curr_el = G1->GetEdgeLabel(u_curr, u_curr_nbr);
-          if (state->mapping[u_curr_nbr] == -1) {
-            diff.update(u_curr_el, 1);
-          } else {
-            int v_curr_mapping_el =
-                G2->GetEdgeLabel(v_curr, state->mapping[u_curr_nbr]);
-            if (v_curr_mapping_el != u_curr_el) {
-              newCost += 2;
-            }
-          }
-        }
-        for (int r = 0; r < v_curr_nbrs.size(); r++) {
-          int v_curr_nbr = v_curr_nbrs[r];
-          int v_curr_el = G2->GetEdgeLabel(v_curr, v_curr_nbr);
-          if (state->inverse_mapping[v_curr_nbr] == -1) {
-            diff.update(v_curr_el, -1);
-          } else {
-            int u_curr_mapping_el =
-                G1->GetEdgeLabel(u_curr, state->inverse_mapping[v_curr_nbr]);
-            if (u_curr_mapping_el == -1) {
-              newCost += 2;
-            }
-          }
-        }
-        int inner_distance = diff.GetDifference();
-        newCost += inner_distance;
-        // ChangeCost(u_curr, v_curr, newCost, state);
-        state->matrix[u_curr][v_curr] = newCost;
-      }
 
-      int from_null = BranchEditDistanceFromNull(G2->GetBranch(v_curr));
-      for (int v_nbr : G2->GetNeighbors(v_curr)) {
-        if (state->inverse_mapping[v_nbr] != -1) {
-          from_null++;
-        }
-      }
-      for (int i = G1->GetNumVertices(); i < G2->GetNumVertices(); i++) {
-        state->matrix[i][v_curr] = from_null;
-        //   ChangeCost(i, v_curr, from_null, state);
-      }
-      col[v_curr] = true;
-    }
+	/* Compute Parikh vectors */
+	using std::vector;
+	const int n1 = G1->GetNumVertices();
+	const int n2 = G2->GetNumVertices();
+	const int np = std::max(G1->GetNumEdgeLabels(), G2->GetNumEdgeLabels());
+
+	for (int u = 0; u < n1; ++u) {
+		for (const int _u: G1->GetNeighbors(u)) if (state->mapping[_u] == -1 || state->mapping[_u] == v) {
+			const int u_u = G1->GetEdgeLabel(u, _u);
+			++parikh1[u][u_u];
+			++parikh1[u][0];
+		}
+	}
+	for (int v = 0; v < n2; ++v) {
+		for (const int _v: G2->GetNeighbors(v)) if (state->inverse_mapping[_v] == -1 || state->inverse_mapping[_v] == u) {
+			const int v_v = G2->GetEdgeLabel(v, _v);
+			++parikh2[v][v_v];
+			++parikh2[v][0];
+		}
+	}
+
+	/* Update cost matrix */
+	// CASE1 and CASE2: _u in Nbr(u)
+	for (int i = 0; i < (int)u_nbrs.size(); ++i) {
+		const int _u = u_nbrs[i];
+		if (state->mapping[_u] != -1) {
+			continue;
+		}
+		for (int _v = 0; _v < (int)G2->GetNumVertices(); ++_v) {
+			if (state->inverse_mapping[_v] != -1) { // || G2->GetEdgeLabel(v, _v) != -1) {
+				continue;
+			}
+
+			const int l1 = G1->GetEdgeLabel(u, _u);
+			const int l2 = G2->GetEdgeLabel(v, _v);
+
+			if (l1 != l2) {
+				int delta = 0;
+				delta += 2;
+
+				delta -= ~(l1 | l2) || (parikh1[_u][0] > parikh2[_v][0]);
+				if (l1 != -1 && parikh1[_u][l1] <= parikh2[_v][l1]) {
+					delta += 1;
+				}
+				if (l2 != -1 && parikh1[_u][l2] >= parikh2[_v][l2]) {
+					delta += 1;
+				}
+				state->matrix[_u][_v] += delta;
+			}
+		}
+		row[_u] = true;
+	}
+
+	// CASE3: _u not in Nbr(u) and _v in Nbr(v)
+	for (int _u = 0; _u < (int)G1->GetNumVertices(); ++_u) {
+		if (state->mapping[_u] != -1 || G1->GetEdgeLabel(u, _u) != -1) {
+			continue;
+		}
+		for (int j = 0; j < (int)v_nbrs.size(); ++j) {
+			const int _v = v_nbrs[j];
+			if (state->inverse_mapping[_v] != -1) {
+				continue;
+			}
+
+			const int l1 = G1->GetEdgeLabel(u, _u);
+			const int l2 = G2->GetEdgeLabel(v, _v);
+
+			if (l1 != l2) {
+				int delta = 0;
+				delta += 2;
+
+				delta -= (parikh1[_u][0] < parikh2[_v][0]);
+				if (parikh1[_u][l2] >= parikh2[_v][l2]) {
+					delta += 1;
+				}
+				state->matrix[_u][_v] += delta;
+			}
+		}
+	}
+
+	for (int j = 0; j < (int)v_nbrs.size(); ++j) {
+		const int _v = v_nbrs[j];
+		if (state->inverse_mapping[_v] != -1) {
+			continue;
+		}
+		for (int _u = G1->GetNumVertices(); _u < G2->GetNumVertices(); ++_u) {
+			state->matrix[_u][_v] += 1;
+		}
+		col[_v] = true;
+	}
+
     ChangeAlphaBeta(state, row, col);
+
+	/* Release Parikh vectors */
+	for (int u = 0; u < n1; ++u) {
+		for (const int _u: G1->GetNeighbors(u)) if (state->mapping[_u] == -1 || state->mapping[_u] == v) {
+			const int u_u = G1->GetEdgeLabel(u, _u);
+			parikh1[u][u_u] = 0;
+			parikh1[u][0] = 0;
+		}
+	}
+	for (int v = 0; v < n2; ++v) {
+		for (const int _v: G2->GetNeighbors(v)) if (state->inverse_mapping[_v] == -1 || state->inverse_mapping[_v] == u) {
+			const int v_v = G2->GetEdgeLabel(v, _v);
+			parikh2[v][v_v] = 0;
+			parikh2[v][0] = 0;
+		}
+	}
   }
+
   void Match(DHoState *state) {
     int u = matching_order[state->depth];
     int v = state->mapping[u];
@@ -730,6 +736,7 @@ public:
           static_cast<DHoState *>(state->parent)->hungarian_assignment;
       state->hungarian_inverse_assignment =
           static_cast<DHoState *>(state->parent)->hungarian_inverse_assignment;
+
       t.Start();
       // std::cout << state->beta << "\n";
       ComputeBranchDistanceMatrixDynamic(state);
