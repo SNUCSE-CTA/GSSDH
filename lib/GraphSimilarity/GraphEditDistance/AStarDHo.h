@@ -36,6 +36,7 @@ class AStarDHo : public GraphEditDistanceSolver
     };
 
     std::priority_queue<int, std::vector<int>, StateIndexComparator> queue;
+    std::stack<int> stk;
     const int INF = 1e9;
 
     std::vector<int> assignment, inverse_assignment;
@@ -158,7 +159,6 @@ class AStarDHo : public GraphEditDistanceSolver
                     slack[i] = cost_matrix[u][i] - lx[u] - ly[i];
                     slackmy[i] = u;
                 }
-
                 int target = n, X;
                 while (true)
                 {
@@ -540,7 +540,6 @@ class AStarDHo : public GraphEditDistanceSolver
         auto &v_nbrs = G2->GetNeighbors(v);
         std::vector<bool> row(G1->GetNumVertices(), false);
         std::vector<bool> col(G2->GetNumVertices(), false);
-
         /* Compute Parikh vectors */
         using std::vector;
         const int n1 = G1->GetNumVertices();
@@ -567,7 +566,6 @@ class AStarDHo : public GraphEditDistanceSolver
                     ++parikh2[v][0];
                 }
         }
-
         /* Update cost matrix */
         // CASE1 and CASE2: _u in Nbr(u)
         for (int i = 0; i < (int)u_nbrs.size(); ++i)
@@ -735,18 +733,13 @@ class AStarDHo : public GraphEditDistanceSolver
                 v_idxs[v] = rem_right.size();
                 rem_right.emplace_back(v);
                 beta[v_idxs[v]] = state->beta[v];
-                ;
             }
         }
         for (int i = 0; i < remaining; i++)
         {
             if (state->hungarian_assignment[rem_left[i]] != -1)
             {
-                assignment[i] =
-                    v_idxs[state->hungarian_assignment[rem_left[i]]]; // rem_left[i] ==
-                                                                      // u,
-                                                                      // state->hungarian_assignment[rem_left[i]]
-                                                                      // = v,
+                assignment[i] = v_idxs[state->hungarian_assignment[rem_left[i]]];
             }
             if (state->hungarian_inverse_assignment[rem_right[i]] != -1)
             {
@@ -790,31 +783,35 @@ class AStarDHo : public GraphEditDistanceSolver
     std::pair<int, int> DHoLowerBound(DHoState *state)
     {
         int ub = 0, lb = 0;
-        state->matrix.resize(G2->GetNumVertices(), std::vector<int>(G2->GetNumVertices(), 0));
-        state->hungarian_assignment.resize(G2->GetNumVertices(), -1);
-        state->alpha.resize(G2->GetNumVertices());
-        state->beta.resize(G2->GetNumVertices());
+        // state->matrix.resize(G2->GetNumVertices(), std::vector<int>(G2->GetNumVertices(), 0));
+        // state->hungarian_assignment.resize(G2->GetNumVertices(), -1);
+        // state->alpha.resize(G2->GetNumVertices());
+        // state->beta.resize(G2->GetNumVertices());
         N = G2->GetNumVertices() - (state->depth + 1);
         // std::cout << N << "\n";
-        Timer t;
+        // Timer t;
         if (state->depth == -1)
-        {
-            t.Start();
+        {   
+            Timer ttt;
+            ttt.Start();
+            state->matrix.resize(G2->GetNumVertices(), std::vector<int>(G2->GetNumVertices(), 0));
+            // t.Start();
             ComputeBranchDistanceMatrixInitial(state);
-            t.Stop();
-            bdtime += t.GetTime();
+            // t.Stop();
+            // bdtime += t.GetTime();
             Initialize(state);
             std::vector<int> rem_left, rem_right;
-            Timer b;
-            b.Start();
-            // Solve(state->matrix, state, rem_left, rem_right);
+            // Timer b;
+            // b.Start();
             total_cost = Hungarian(1, N, state->matrix, state, rem_left, rem_right);
-            b.Stop();
-            hgtime += b.GetTime();
+            // b.Stop();
+            // hgtime += b.GetTime();
+
             state->hungarian_assignment = assignment;
             state->hungarian_inverse_assignment = inverse_assignment;
             state->alpha = alpha;
             state->beta = beta;
+
             std::vector<int> hungarian_mapping(G1->GetNumVertices(), -1);
             std::vector<int> hungarian_inverse_mapping(G2->GetNumVertices(), -1);
             std::memcpy(hungarian_mapping.data(), state->mapping, sizeof(int) * G1->GetNumVertices());
@@ -826,38 +823,44 @@ class AStarDHo : public GraphEditDistanceSolver
                 hungarian_mapping[i] = state->hungarian_assignment[i];
                 hungarian_inverse_mapping[state->hungarian_assignment[i]] = i;
             }
+            // t.Start();
             ub = ComputeDistance(hungarian_mapping, hungarian_inverse_mapping);
             lb = state->cost + ((total_cost + 1) / 2);
-            // std::cout << state->hungarian_assignment << "\n";
-            // std::cout << total_cost << "\n";
+            ttt.Stop();bdtime += ttt.GetTime();
         }
         else
-        {
+        {   
+            Timer ttt;
+            ttt.Start();
             state->matrix = static_cast<DHoState *>(state->parent)->matrix;
             state->alpha = static_cast<DHoState *>(state->parent)->alpha;
             state->beta = static_cast<DHoState *>(state->parent)->beta;
             state->hungarian_assignment = static_cast<DHoState *>(state->parent)->hungarian_assignment;
             state->hungarian_inverse_assignment = static_cast<DHoState *>(state->parent)->hungarian_inverse_assignment;
-
-            t.Start();
-            // std::cout << state->beta << "\n";
+            ttt.Stop();
+            bdtime += ttt.GetTime();
+            // t.Start();
             ComputeBranchDistanceMatrixDynamic(state);
+            // Timer ttt;
+            // ttt.Start();
             Match(state);
-            t.Stop();
-            bdtime += t.GetTime();
+            // ttt.Stop();
+            // bdtime += ttt.GetTime();
+            // t.Stop();
+            // bdtime += t.GetTime();
+
             int remaining = G2->GetNumVertices() - (state->depth + 1);
             std::vector<int> rem_left, rem_right;
             std::vector<std::vector<int>> local_matrix(remaining, std::vector<int>(remaining, 0));
-
             ComputeReducedMatrix(state, local_matrix, rem_left, rem_right, remaining);
+
+
             Timer a;
             a.Start();
-            // Solve(local_matrix, state, rem_left, rem_right);
             total_cost = Hungarian(0, N, local_matrix, state, rem_left, rem_right);
             a.Stop();
             hgtime += a.GetTime();
-            // LocalToState(state, rem_left, rem_right, remaining);
-
+  
             std::vector<int> hungarian_mapping(G1->GetNumVertices(), -1);
             std::vector<int> hungarian_inverse_mapping(G2->GetNumVertices(), -1);
             std::memcpy(hungarian_mapping.data(), state->mapping, sizeof(int) * G1->GetNumVertices());
@@ -872,12 +875,6 @@ class AStarDHo : public GraphEditDistanceSolver
             ub = ComputeDistance(hungarian_mapping, hungarian_inverse_mapping);
             lb = state->cost + ((total_cost + 1) / 2);
         }
-
-        // std::cout << alpha << "\n" << beta << "\n" << state->alpha << "\n" <<
-        // state->beta << "\n" << assignment << "\n" << inverse_assignment << "\n"
-        // << state->hungarian_assignment << "\n" << state->
-        // hungarian_inverse_assignment << "\n"; std::cout << lb << " " << ub <<
-        // "\n";
         return {lb, ub};
     }
 
@@ -918,14 +915,15 @@ class AStarDHo : public GraphEditDistanceSolver
             if (threshold > 0)
             {
                 if (child_state->lower_bound > threshold)
-                {
+                { 
                     delete child_state;
                     continue;
                 }
             }
             states.emplace_back(child_state);
             // num_nodes++;
-            queue.push(states.size() - 1);
+            stk.push(states.size() -1);
+            // queue.push(states.size() - 1);
         }
     }
 
@@ -944,28 +942,35 @@ class AStarDHo : public GraphEditDistanceSolver
         // num_nodes++;
         states.emplace_back(initial_state);
         queue.push(states.size() - 1);
+        stk.push(states.size() -1);
         int64_t max_qsize = 1;
-        while (!queue.empty())
+        // while (!queue.empty())
+        while(!stk.empty())
         {
-            DHoState *current_state = states[queue.top()];
+            // DHoState *current_state = states[queue.top()];
+              DHoState *current_state = states[stk.top()];
             num_nodes++;
-            queue.pop();
+            // queue.pop();
+            stk.pop();
             if (current_state->lower_bound >= current_best)
-            {
-                queue = std::priority_queue<int, std::vector<int>, StateIndexComparator>();
+            {     
+                // queue = std::priority_queue<int, std::vector<int>, StateIndexComparator>();
+                stk = std::stack<int>();
                 break;
             }
             if (threshold >= 0)
             {
                 if (current_best < threshold)
                 {
-                    queue = std::priority_queue<int, std::vector<int>, StateIndexComparator>();
+                    // queue = std::priority_queue<int, std::vector<int>, StateIndexComparator>();
+                    stk = std::stack<int>();
                     break;
                 }
                 if (current_state->lower_bound > threshold)
                 {
                     current_best = -1;
-                    queue = std::priority_queue<int, std::vector<int>, StateIndexComparator>();
+                    // queue = std::priority_queue<int, std::vector<int>, StateIndexComparator>();
+                    stk = std::stack<int>();
                     break;
                 }
             }

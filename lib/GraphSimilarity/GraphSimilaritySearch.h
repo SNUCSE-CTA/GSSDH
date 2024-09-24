@@ -18,7 +18,8 @@
 #include "Base/DynamicHungarian.h"
 #ifdef CC
 // #include "GraphSimilarity/GraphEditDistance/AStarDH.h"
-#include "GraphSimilarity/GraphEditDistance/AStarDHo.h"
+// #include "GraphSimilarity/GraphEditDistance/AStarDHo.h"
+#include "GraphSimilarity/GraphEditDistance/DFSDH.h"
 #endif
 #ifdef COLORING
 #include "GraphSimilarity/GraphEditDistance/AStarLSa.h"
@@ -38,8 +39,9 @@ class GraphSimilaritySearch {
   ResultLogger log;
 #ifdef CC
   Hungarian *hungariansolver = nullptr;
-  AStarDHo GEDSolver;
+  // AStarDHo GEDSolver;
   // AStarDH GEDSolver;
+  DFSDH GEDSolver;
 #endif
 #ifdef COLORING
   AStarLSa GEDSolver;
