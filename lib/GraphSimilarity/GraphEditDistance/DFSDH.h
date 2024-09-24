@@ -23,12 +23,14 @@ class DFSDH : public GraphEditDistanceSolver
     std::vector<bool> row;
     std::vector<bool> col;
 
+
     char *visX;
     char *visY;
     int *slack;
     int *slackmy;
     unsigned int *prev;
     unsigned int *queue;
+    bool flag = false;
 
     const int INF = 1e8;
     int N = 0;
@@ -73,6 +75,7 @@ class DFSDH : public GraphEditDistanceSolver
         ub = 0;
         depth = -1;
         cost = 0; // mapping cost
+        flag = false;
     }
     using ui = unsigned int;
 
@@ -561,6 +564,9 @@ class DFSDH : public GraphEditDistanceSolver
             total_cost = Hungarian(0);
         }
         lb = cost + ((total_cost + 1) / 2);
+        // std::cout<<depth<<std::endl;
+        // std::cout<<assignment[depth]<<std::endl;
+        // std::cout<<inverse_assignment[depth]<<std::endl;
         ub = ComputeDistance(assignment[depth], inverse_assignment[depth]);
         return {lb, ub};
     }
@@ -609,9 +615,10 @@ class DFSDH : public GraphEditDistanceSolver
         }
     }
 
-    bool flag = false; // stop dfs
+     // stop dfs
     void DFS(int u, int v)
     {
+        cnt++;
         depth++;
         if (depth == G1->GetNumVertices() - 1)
         {
@@ -665,10 +672,10 @@ class DFSDH : public GraphEditDistanceSolver
             }
         }
 
-        RestoreParikhVector(u, v);
-        ComputeBranchDistanceMatrixDynamic(u, v, 0);
         if (depth != 0)
         {
+            RestoreParikhVector(u, v);
+            ComputeBranchDistanceMatrixDynamic(u, v, 0);
             mapping[u] = -1;
             inverse_mapping[v] = -1;
             RemoveMatch(u, v);
@@ -690,7 +697,7 @@ class DFSDH : public GraphEditDistanceSolver
             return 0;
         }
         else
-            return threshold + 1;
+            return -1;
     }
 
     void PrintMatrix()
