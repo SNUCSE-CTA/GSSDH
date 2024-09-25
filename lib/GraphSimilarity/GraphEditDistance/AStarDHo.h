@@ -875,10 +875,10 @@ class AStarDHo : public GraphEditDistanceSolver
             ub = ComputeDistance(hungarian_mapping, hungarian_inverse_mapping);
             lb = state->cost + ((total_cost + 1) / 2);
         }
-        if(lb == 3){
+        // if(lb == 3){
           std::cout << matching_order[state->depth] << " " << state->mapping[matching_order[state->depth]] << " " << lb << " " << ub << "\n";
           std::cout << state->hungarian_assignment << "\n";
-        }
+        // }
         return {lb, ub};
     }
 

@@ -17,6 +17,7 @@ static int32_t LOG_EVERY = 50000;
 class GraphEditDistanceSolver {
 protected:
   GSSEntry *G1, *G2, *combined;
+  // int threshold = -1, current_best = 1e9;
   int threshold = -1, current_best = 1e9;
   int64_t num_nodes = 0;
   std::vector<int> current_best_mapping;
@@ -39,6 +40,7 @@ public:
       this->G1 = G1_;
       this->G2 = G2_;
     }
+    // this->threshold = threshold_;
     this->threshold = threshold_;
   }
   /*
@@ -111,8 +113,8 @@ public:
       return false;
     if (DegreeSequenceBound() > threshold)
       return false;
-    if (BranchBound() > threshold)
-      return false;
+    // if (BranchBound() > threshold)
+    //   return false;
     return true;
   }
 

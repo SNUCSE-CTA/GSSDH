@@ -39,8 +39,11 @@ class DFSDH : public GraphEditDistanceSolver
     int total_cost = 0;
     // int lb = 0, ub = 0;
     int depth = -1;
+    int tau = -1;
 
     int cost = 0; // mapping cost
+
+    bool init = false;
 
     double hgtime = 0.0;
     double bdtime = 0.0;
@@ -79,8 +82,20 @@ class DFSDH : public GraphEditDistanceSolver
         cost = 0; // mapping cost
         flag = false;
         cnt = 0;
+        init = false;
     }
     using ui = unsigned int;
+
+    void IterativeDeepningSearch(){
+        for(int i = 0 ; i <= threshold; i++){
+            tau = i;
+            init = false;
+            DFS(-1, -1);
+            if(flag){
+                break;
+            }
+        }
+    }
 
     int Hungarian(char initialization)
     {
@@ -125,7 +140,7 @@ class DFSDH : public GraphEditDistanceSolver
             }
         }
         int lb = cost + ((acc + 1) / 2);
-        if (lb > threshold)
+        if (lb > tau)
         {
             // std::cout<<"early stop1 "<<lb<<std::endl;
             return acc;
@@ -197,7 +212,7 @@ class DFSDH : public GraphEditDistanceSolver
                             slack[i] -= delta;
                     }
                     lb = cost + ((acc + 1) / 2);
-                    if (lb > threshold)
+                    if (lb > tau)
                     {
                         // std::cout<<"early stop2 "<<lb<<std::endl;
                         return acc;
@@ -243,38 +258,7 @@ class DFSDH : public GraphEditDistanceSolver
                     target = ty;
                 }
             }
-        memset(visX, 0, sizeof(char) * n);
-        memset(visY, 0, sizeof(char) * n);
-
-        int res = 0;
-        for (ui i = 0; i < n; i++)
-        {
-            if (mapping[i] == -1)
-            {
-                if(matrix[i][mx[i]] >= INF){
-                    std::cout<<i <<' '<<G1->GetNumVertices()<<' '<<depth<<' '<<acc<<std::endl;
-                    std::cout<<assignment[depth]<<std::endl;
-                    std::cout<<inverse_assignment[depth]<<std::endl;
-                    std::cout<<mapping<<std::endl;
-                    std::cout<<inverse_mapping<<std::endl;
-                    for(int j=0; j<n; j++){
-                        std::cout<<"("<<lx[j]<<' '<<ly[mx[j]] <<") ";
-                    }
-                    std::cout<<std::endl;
-
-                    for(int j = 0; j < n; j++){
-                        for(int k = 0; k<n; k++){
-                            std::cout<<matrix[j][k]<< '\t';
-                        }
-                    std::cout<<std::endl;
-                    }
-                    exit(0);
-                }
-                res += matrix[i][mx[i]];
-            }
-        }
-        // std::cout<<"finish hung "<<std::endl;
-        return res;
+        return acc;
     }
 
     void ChangeAlphaBeta(std::vector<bool> &row, std::vector<bool> &col)
@@ -580,10 +564,15 @@ class DFSDH : public GraphEditDistanceSolver
 
     std::pair<int, int> LowerBound()
     {
-        int ub = threshold+1, lb = 0;
-        if (depth == 0)
+        int ub = tau+1, lb = 0;
+        if (!init)
         {
+            // if(tau == 0) {total_cost = Hungarian(1);}
+            // else{
+            // total_cost = Hungarian(0);
+            // }
             total_cost = Hungarian(1);
+            init = true;
         }
         else
         {
@@ -593,7 +582,7 @@ class DFSDH : public GraphEditDistanceSolver
         // std::cout<<depth<<std::endl;
         // std::cout<<assignment[depth]<<std::endl;
         // std::cout<<inverse_assignment[depth]<<std::endl;
-        if(lb <= threshold){
+        if(lb <= tau){
             ub = ComputeDistance(assignment[depth], inverse_assignment[depth]);
         }
         // std::cout<<lb<<' '<<ub<<std::endl;
@@ -674,7 +663,7 @@ class DFSDH : public GraphEditDistanceSolver
         auto [lb, ub] = LowerBound();
         // std::cout <<u << " " << v << " " << lb << " " <<ub << "\n";
         int uprime = matching_order[depth];
-        for (int i = 0; i < G1->GetNumVertices() - depth; i++)
+        for (int i = 0; i < G2->GetNumVertices() - depth ; i++)
         {
             if (i != 0)
             {
@@ -683,16 +672,20 @@ class DFSDH : public GraphEditDistanceSolver
             // std::cout<<"?? "<<' '<<lb<<' '<<ub<<std::endl;
 
             int vprime = assignment[depth][uprime];
-            if (lb > threshold)
+            // if(uprime == 10){
+            // std::cout<< uprime<<' '<<vprime<<' '<<lb<<' '<<ub<<std::endl;
+            // std::cout<< assignment[depth] << "\n";
+            // PrintMatrix();
+            // }
+            if (lb > tau)
             {
                 break;
             }
-            if (ub <= threshold)
+            if (ub <= tau)
             {
                 flag = true;
                 return;
             }
-            // std::cout<< uprime<<' '<<vprime<<' '<<lb<<' '<<ub<<std::endl;
             DFS(uprime, vprime);
             if (flag)
                 return;
@@ -728,7 +721,9 @@ class DFSDH : public GraphEditDistanceSolver
         // std::cout << parikh1 << "\n";
         // PrintMatrix();
         // exit(0);
+        tau = threshold;
         DFS(-1, -1);
+        // IterativeDeepningSearch();
         if (flag)
         {
             return 0;
