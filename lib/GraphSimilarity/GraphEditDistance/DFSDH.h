@@ -78,6 +78,7 @@ class DFSDH : public GraphEditDistanceSolver
         depth = -1;
         cost = 0; // mapping cost
         flag = false;
+        cnt = 0;
     }
     using ui = unsigned int;
 
@@ -649,11 +650,13 @@ class DFSDH : public GraphEditDistanceSolver
         cnt++;
         depth++;
         int chcost = 0;
-        if (depth == G1->GetNumVertices() - 1)
+                // std::cout << u << " " << v <<  " " << flag <<'\n';
+        if (depth == G1->GetNumVertices())
         {
             depth--;
             return;
         }
+        // std::cout << u << " " << v <<  " " << flag <<'\n';
         if (depth != 0)
         {
             assignment[depth] = assignment[depth - 1]; // copy from parent
@@ -669,6 +672,7 @@ class DFSDH : public GraphEditDistanceSolver
             UpdateParikhVector(u, v);
         }
         auto [lb, ub] = LowerBound();
+        // std::cout <<u << " " << v << " " << lb << " " <<ub << "\n";
         int uprime = matching_order[depth];
         for (int i = 0; i < G1->GetNumVertices() - depth; i++)
         {
