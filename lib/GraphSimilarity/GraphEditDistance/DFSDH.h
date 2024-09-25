@@ -23,7 +23,6 @@ class DFSDH : public GraphEditDistanceSolver
     std::vector<bool> row;
     std::vector<bool> col;
 
-
     char *visX;
     char *visY;
     int *slack;
@@ -86,12 +85,15 @@ class DFSDH : public GraphEditDistanceSolver
     }
     using ui = unsigned int;
 
-    void IterativeDeepningSearch(){
-        for(int i = 0 ; i <= threshold; i++){
+    void IterativeDeepningSearch()
+    {
+        for (int i = 0; i <= threshold; i++)
+        {
             tau = i;
             init = false;
             DFS(-1, -1);
-            if(flag){
+            if (flag)
+            {
                 break;
             }
         }
@@ -142,7 +144,6 @@ class DFSDH : public GraphEditDistanceSolver
         int lb = cost + ((acc + 1) / 2);
         if (lb > tau)
         {
-            // std::cout<<"early stop1 "<<lb<<std::endl;
             return acc;
         }
 
@@ -214,7 +215,6 @@ class DFSDH : public GraphEditDistanceSolver
                     lb = cost + ((acc + 1) / 2);
                     if (lb > tau)
                     {
-                        // std::cout<<"early stop2 "<<lb<<std::endl;
                         return acc;
                     }
 
@@ -564,7 +564,7 @@ class DFSDH : public GraphEditDistanceSolver
 
     std::pair<int, int> LowerBound()
     {
-        int ub = tau+1, lb = 0;
+        int ub = tau + 1, lb = 0;
         if (!init)
         {
             // if(tau == 0) {total_cost = Hungarian(1);}
@@ -582,7 +582,8 @@ class DFSDH : public GraphEditDistanceSolver
         // std::cout<<depth<<std::endl;
         // std::cout<<assignment[depth]<<std::endl;
         // std::cout<<inverse_assignment[depth]<<std::endl;
-        if(lb <= tau){
+        if (lb <= tau)
+        {
             ub = ComputeDistance(assignment[depth], inverse_assignment[depth]);
         }
         // std::cout<<lb<<' '<<ub<<std::endl;
@@ -633,13 +634,12 @@ class DFSDH : public GraphEditDistanceSolver
         }
     }
 
-     // stop dfs
+    // stop dfs
     void DFS(int u, int v)
     {
         cnt++;
         depth++;
         int chcost = 0;
-                // std::cout << u << " " << v <<  " " << flag <<'\n';
         if (depth == G1->GetNumVertices())
         {
             depth--;
@@ -655,7 +655,7 @@ class DFSDH : public GraphEditDistanceSolver
             mapping[u] = v;
             inverse_mapping[v] = u;
             Match(u, v);
-            chcost = ChildEditCost(u,v);
+            chcost = ChildEditCost(u, v);
             cost += chcost;
             ComputeBranchDistanceMatrixDynamic(u, v, 1);
             UpdateParikhVector(u, v);
@@ -663,7 +663,7 @@ class DFSDH : public GraphEditDistanceSolver
         auto [lb, ub] = LowerBound();
         // std::cout <<u << " " << v << " " << lb << " " <<ub << "\n";
         int uprime = matching_order[depth];
-        for (int i = 0; i < G2->GetNumVertices() - depth ; i++)
+        for (int i = 0; i < G2->GetNumVertices() - depth; i++)
         {
             if (i != 0)
             {
@@ -687,6 +687,8 @@ class DFSDH : public GraphEditDistanceSolver
                 return;
             }
             DFS(uprime, vprime);
+            // std::cout<< "ret "<< uprime<<' '<<vprime<<' '<<lb<<' '<<ub<<std::endl;
+
             if (flag)
                 return;
             matrix[uprime][vprime] += INF2;
@@ -708,7 +710,7 @@ class DFSDH : public GraphEditDistanceSolver
             mapping[u] = -1;
             inverse_mapping[v] = -1;
             RemoveMatch(u, v);
-            cost-=chcost;
+            cost -= chcost;
         }
         depth--;
     }
