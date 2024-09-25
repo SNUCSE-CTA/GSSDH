@@ -42,6 +42,7 @@ class DFSDH : public GraphEditDistanceSolver
 
     int cost = 0; // mapping cost
 
+
     double hgtime = 0.0;
     double bdtime = 0.0;
     int64_t cnt = 0;
@@ -78,6 +79,11 @@ class DFSDH : public GraphEditDistanceSolver
         depth = -1;
         cost = 0; // mapping cost
         flag = false;
+        cnt = 0;
+    }
+
+    void Initialize_IDS(){
+
     }
     using ui = unsigned int;
 
@@ -126,7 +132,6 @@ class DFSDH : public GraphEditDistanceSolver
         int lb = cost + ((acc + 1) / 2);
         if (lb > threshold)
         {
-            // std::cout<<"early stop1 "<<lb<<std::endl;
             return acc;
         }
 
@@ -198,7 +203,6 @@ class DFSDH : public GraphEditDistanceSolver
                     lb = cost + ((acc + 1) / 2);
                     if (lb > threshold)
                     {
-                        // std::cout<<"early stop2 "<<lb<<std::endl;
                         return acc;
                     }
 
@@ -649,7 +653,7 @@ class DFSDH : public GraphEditDistanceSolver
         cnt++;
         depth++;
         int chcost = 0;
-        if (depth == G1->GetNumVertices() - 1)
+        if (depth == G1->GetNumVertices())
         {
             depth--;
             return;
@@ -670,7 +674,7 @@ class DFSDH : public GraphEditDistanceSolver
         }
         auto [lb, ub] = LowerBound();
         int uprime = matching_order[depth];
-        for (int i = 0; i < G1->GetNumVertices() - depth; i++)
+        for (int i = 0; i < G2->GetNumVertices() - depth; i++)
         {
             if (i != 0)
             {
@@ -690,6 +694,8 @@ class DFSDH : public GraphEditDistanceSolver
             }
             // std::cout<< uprime<<' '<<vprime<<' '<<lb<<' '<<ub<<std::endl;
             DFS(uprime, vprime);
+            // std::cout<< "ret "<< uprime<<' '<<vprime<<' '<<lb<<' '<<ub<<std::endl;
+
             if (flag)
                 return;
             matrix[uprime][vprime] += INF2;
