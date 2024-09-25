@@ -81,10 +81,6 @@ class DFSDH : public GraphEditDistanceSolver
         flag = false;
         cnt = 0;
     }
-
-    void Initialize_IDS(){
-
-    }
     using ui = unsigned int;
 
     int Hungarian(char initialization)
@@ -658,6 +654,7 @@ class DFSDH : public GraphEditDistanceSolver
             depth--;
             return;
         }
+        // std::cout << u << " " << v <<  " " << flag <<'\n';
         if (depth != 0)
         {
             assignment[depth] = assignment[depth - 1]; // copy from parent
@@ -673,6 +670,7 @@ class DFSDH : public GraphEditDistanceSolver
             UpdateParikhVector(u, v);
         }
         auto [lb, ub] = LowerBound();
+        // std::cout <<u << " " << v << " " << lb << " " <<ub << "\n";
         int uprime = matching_order[depth];
         for (int i = 0; i < G2->GetNumVertices() - depth; i++)
         {
