@@ -4,6 +4,7 @@
 #include <unordered_set>
 
 #include "GraphSimilarity/GSSEntry.h"
+#include "Base/Hungarian.h"
 
 using GraphLib::LabeledGraph;
 namespace GraphLib {
@@ -13,6 +14,7 @@ public:
   // int color;
   std::vector<int> vertices;
   std::vector<ColorTree *> children;
+  int height;
   bool was_in_queue = false;
   ColorTree() : parent(nullptr) { was_in_queue = false; }
 };
@@ -25,6 +27,9 @@ protected:
   ColorTree *root;
   // The leaf nodes
   std::queue<ColorTree *> leaf_nodes;
+  // The mapping from vertex to leaf node
+  std::vector<ColorTree *> vertex_to_leaf_node;
+  const int INF = 1e9;
 
 public:
   // The matching information
@@ -43,10 +48,13 @@ public:
 
   void ComputeMatchingCost();
 
-  void KmeansClustering(const int k, const int iter,
-                        const std::vector<std::vector<int>> &coo);
+  void MakeBipartiteGraph();
 
-  void Init() { root = new ColorTree(); }
+  void Init() {
+    root = new ColorTree();
+    root->height = 0;
+    vertex_to_leaf_node.resize(G->GetNumVertices());
+  }
 
   void Deallocate() {
     std::stack<ColorTree *> stack;
@@ -139,6 +147,7 @@ void GWL::GraphColoring(const int iter, int *mapping_array,
       if (prev_color_to_node[curr_color] == nullptr) {
         ColorTree *node = new ColorTree();
         node->parent = root;
+        node->height = root->height + 1;
         root->children.push_back(node);
         prev_color_to_node[curr_color] = node;
       }
@@ -149,13 +158,16 @@ void GWL::GraphColoring(const int iter, int *mapping_array,
         node->parent = root;
         root->children.push_back(node);
         node->vertices.push_back(i);
+        node->height = root->height + 1;
         prev_color_to_node[next_color] = node;
         leaf_nodes.push(node);
+        vertex_to_leaf_node[i] = node;
         next_color++;
       } else {
         G->vertex_color[i] =
             G->vertex_color[inverse_mapping_array[i - combined_index]];
         prev_color_to_node[G->vertex_color[i]]->vertices.push_back(i);
+        vertex_to_leaf_node[i] = prev_color_to_node[G->vertex_color[i]];
       }
     }
   }
@@ -214,6 +226,9 @@ void GWL::GraphColoring(const int iter, int *mapping_array,
       if (freq_iter != frequency_to_color_map.end()) {
         temp_color[u] = freq_iter->second;
         curr_color_to_node[freq_iter->second]->vertices.push_back(u);
+        if (i == iter - 1) {
+          vertex_to_leaf_node[u] = curr_color_to_node[freq_iter->second];
+        }
       } else {
         frequency_to_color_map[color_frequency] = next_color;
         temp_color[u] = next_color;
@@ -223,9 +238,11 @@ void GWL::GraphColoring(const int iter, int *mapping_array,
         prev_color_to_node[curr_color]->children.push_back(node);
         curr_color_to_node[next_color] = node;
         node->vertices.push_back(u);
+        node->height = node->parent->height + 1;
         next_color++;
         if (i == iter - 1) {
           leaf_nodes.push(node);
+          vertex_to_leaf_node[u] = node;
         }
       }
     }
@@ -285,5 +302,121 @@ void GWL::VertexMatching() {
       }
     }
   }
+}
+
+void GWL::MakeBipartiteGraph() {
+  // Debug coloring
+  std::cout << "Vertex coloring: ";
+  for (int i = 0; i < G->GetNumVertices(); ++i) {
+    std::cout << i + 1 << " -> " << G->vertex_color[i] << std::endl;
+  }
+  std::cout << std::endl;
+  // Make the bipartite graph based on the distance on the color tree
+  std::vector<std::vector<int>> cost_matrix;
+  int combined_index = G->combined_index;
+  int matrix_size =
+      std::max(combined_index, G->GetNumVertices() - combined_index);
+  cost_matrix.resize(matrix_size);
+  for (int i = 0; i < matrix_size; ++i) {
+    cost_matrix[i].resize(matrix_size);
+  }
+  for (int i = 0; i < matrix_size; ++i) {
+    for (int j = 0; j < matrix_size; ++j) {
+      cost_matrix[i][j] = INF;
+    }
+  }
+  for (int i = 0; i < G->GetNumVertices(); ++i) {
+    std::cout << "Vertex " << i << ", leaf node: " << vertex_to_leaf_node[i]
+              << std::endl;
+  }
+  for (int i = 0; i < combined_index; ++i) {
+    for (int j = combined_index; j < G->GetNumVertices(); ++j) {
+      ColorTree *node = vertex_to_leaf_node[i];
+      ColorTree *leaf_node = vertex_to_leaf_node[j];
+      // The initial distance is the diff of neighbor color multiset
+      std::vector<int> node_neighbor_colors;
+      std::vector<int> leaf_node_neighbor_colors;
+      for (int u : G->GetNeighbors(i)) {
+        node_neighbor_colors.push_back(G->vertex_color[u]);
+      }
+      for (int u : G->GetNeighbors(j)) {
+        leaf_node_neighbor_colors.push_back(G->vertex_color[u]);
+      }
+      int distance =
+          node_neighbor_colors.size() - leaf_node_neighbor_colors.size();
+      if (distance < 0) {
+        distance = -distance;
+      }
+      std::sort(node_neighbor_colors.begin(), node_neighbor_colors.end());
+      std::sort(leaf_node_neighbor_colors.begin(),
+                leaf_node_neighbor_colors.end());
+      std::vector<int> diff;
+      std::set_difference(
+          node_neighbor_colors.begin(), node_neighbor_colors.end(),
+          leaf_node_neighbor_colors.begin(), leaf_node_neighbor_colors.end(),
+          std::inserter(diff, diff.begin()));
+      distance += diff.size();
+      // Debug
+      if (i == 4 && j == 8) {
+        std::cout << "node_vector: ";
+        for (int u : node_neighbor_colors) {
+          std::cout << u << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "leaf_node_vector: ";
+        for (int u : leaf_node_neighbor_colors) {
+          std::cout << u << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "Diff: ";
+        for (int u : diff) {
+          std::cout << u << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "Distance: " << distance << std::endl;
+      }
+      while (node != leaf_node) {
+        if (node->height > leaf_node->height) {
+          node = node->parent;
+          distance += 2;
+        } else {
+          leaf_node = leaf_node->parent;
+          distance += 2;
+        }
+      }
+      cost_matrix[i][j - combined_index] = distance;
+    }
+  }
+  // Debug
+  for (int i = 0; i < matrix_size; ++i) {
+    for (int j = 0; j < matrix_size; ++j) {
+      if (cost_matrix[i][j] == INF) {
+        std::cout << "INF ";
+      } else {
+        std::cout << cost_matrix[i][j] << " ";
+      }
+    }
+    std::cout << std::endl;
+  }
+  std::cout << std::endl;
+
+  // Hungarian algorithm
+  Hungarian hungarian(cost_matrix);
+  hungarian.Solve();
+  std::vector<int> assignment = hungarian.GetAssignment();
+  mapping = std::vector<int>(combined_index, -1);
+  inverse_mapping = std::vector<int>(G->GetNumVertices() - combined_index, -1);
+  for (int i = 0; i < combined_index; ++i) {
+    if (assignment[i] != -1) {
+      mapping[i] = assignment[i];
+      inverse_mapping[assignment[i]] = i;
+    }
+  }
+
+  // Debug
+  for (int i = 0; i < combined_index; ++i) {
+    std::cout << i + 1 << " -> " << mapping[i] + 1 << std::endl;
+  }
+  std::cout << std::endl;
 }
 } // namespace GraphLib

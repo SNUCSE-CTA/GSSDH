@@ -51,6 +51,12 @@ public:
           unmapped_cross_edge_labels[fa].update(G2->GetEdgeLabel(i), -1);
       }
     }
+    std::cout << "mapping: ";
+    for (int i = 0; i < G1->GetNumVertices(); i++) {
+      if (state->mapping[i] != -1)
+        std::cout << i << "->" << state->mapping[i] << " ";
+    }
+    std::cout << std::endl;
     std::fill_n(prev_color_to_node, combined->GetNumVertices(), nullptr);
     std::fill_n(curr_color_to_node, combined->GetNumVertices(), nullptr);
     gwl->Init();
@@ -59,10 +65,19 @@ public:
     gwl->VertexMatching();
     int ub = ComputeDistance(gwl->mapping, gwl->inverse_mapping, false);
     gwl->Deallocate();
+    std::cout << "ub: " << ub << std::endl;
+    std::cout << "current_best: " << current_best << std::endl;
     if (ub < current_best) {
       // printf("Coloring gives %d -> %d\n", current_best, ub);
       current_best = ub;
       if (current_best <= threshold) {
+        // if (G1->GetNumVertices() < 12) {
+        //   std::cout << "Early Termination because upper bound is " << ub
+        //             << std::endl;
+        //   std::cout << "Depth: " << depth << std::endl;
+        //   std::cout << "Query: " << G1->GetId() << std::endl;
+        //   std::cout << "Data: " << G2->GetId() << std::endl;
+        // }
         return;
       }
     }
@@ -234,6 +249,20 @@ public:
   int GED(GSSEntry *combined, GWL *gwl, ColorTree **prev_color_to_node,
           ColorTree **curr_color_to_node) {
     PrepareGED(combined);
+    std::fill_n(prev_color_to_node, combined->GetNumVertices(), nullptr);
+    std::fill_n(curr_color_to_node, combined->GetNumVertices(), nullptr);
+    int mapping[combined->GetNumVertices()];
+    int inverse_mapping[combined->GetNumVertices()];
+    std::fill_n(mapping, combined->GetNumVertices(), -1);
+    std::fill_n(inverse_mapping, combined->GetNumVertices(), -1);
+    gwl->Init();
+    gwl->GraphColoring(1, mapping, inverse_mapping, prev_color_to_node,
+                       curr_color_to_node);
+    gwl->MakeBipartiteGraph();
+    int ub = ComputeDistance(gwl->mapping, gwl->inverse_mapping, false);
+    gwl->Deallocate();
+    std::cout << "ub: " << ub << std::endl;
+    return 0;
     State *initial_state = new State(NULL);
     initial_state->cost = 0;
     initial_state->vertex_label_bound = 0;
@@ -255,18 +284,29 @@ public:
       }
       queue.pop();
       if (current_state->lower_bound >= current_best) {
+        Deallocation();
         queue = std::priority_queue<State *, std::vector<State *>,
                                     StateComparator>();
         break;
       }
       if (threshold >= 0) {
         if (current_best < threshold) {
+          Deallocation();
           queue = std::priority_queue<State *, std::vector<State *>,
                                       StateComparator>();
+          std::cout << "Numvertices: " << G1->GetNumVertices() << std::endl;
+          if (G1->GetNumVertices() < 8) {
+            std::cout << "Early Termination because upper bound is "
+                      << current_best << std::endl;
+            std::cout << "Depth: " << current_state->depth << std::endl;
+            std::cout << "Query: " << G1->GetId() << std::endl;
+            std::cout << "Data: " << G2->GetId() << std::endl;
+          }
           break;
         }
         if (current_state->lower_bound > threshold) {
           current_best = -1;
+          Deallocation();
           queue = std::priority_queue<State *, std::vector<State *>,
                                       StateComparator>();
           break;
@@ -336,6 +376,14 @@ public:
       printf("Total ED Cost: %d\n", cost);
     // current_best = std::min(cost, current_best);
     return cost;
+  }
+
+  void Deallocation() {
+    while (!queue.empty()) {
+      State *state = queue.top();
+      queue.pop();
+      delete state;
+    }
   }
 };
 } // namespace GraphLib::GraphSimilarity
