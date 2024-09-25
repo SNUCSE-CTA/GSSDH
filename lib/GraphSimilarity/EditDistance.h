@@ -309,12 +309,15 @@ public:
     }
     for (auto &[u, v] : G2->GetEdges()) {
       int inv_u = inverse_mapping[u], inv_v = inverse_mapping[v];
-      if (inv_u == -1 || inv_v == -1) {
+      // if (inv_u == -1 || inv_v == -1) {
+      if (inv_u == -1 || inv_v == -1 || inv_u >= G1->GetNumVertices() || inv_v >= G1->GetNumVertices()) {
         if (verbose)
           printf("Edge (%d, %d) in G2 is nonexistent as G1 is (%d, %d)\n", u, v,
                  inv_u, inv_v);
         cost++;
       } else {
+        // printf("%d %d\n", inv_u, inv_v);
+        // printf("%d\n", G1->GetNumVertices());
         int l = G1->GetEdgeLabel(inv_u, inv_v);
         if (l == -1) {
           if (verbose)
