@@ -45,6 +45,7 @@ class DFSDH : public GraphEditDistanceSolver
     bool init = false;
 
     double hgtime = 0.0;
+    double hgtime2 = 0.0;
     double bdtime = 0.0;
     int64_t cnt = 0;
 
@@ -647,7 +648,7 @@ class DFSDH : public GraphEditDistanceSolver
         }
         // std::cout << u << " " << v <<  " " << flag <<'\n';
         if (depth != 0)
-        {
+        {   
             assignment[depth] = assignment[depth - 1]; // copy from parent
             inverse_assignment[depth] = inverse_assignment[depth - 1];
             alpha[depth] = alpha[depth - 1];
@@ -660,14 +661,22 @@ class DFSDH : public GraphEditDistanceSolver
             ComputeBranchDistanceMatrixDynamic(u, v, 1);
             UpdateParikhVector(u, v);
         }
+        Timer h1;
+        h1.Start(); 
         auto [lb, ub] = LowerBound();
+        h1.Stop();
+        hgtime += h1.GetTime();
         // std::cout <<u << " " << v << " " << lb << " " <<ub << "\n";
         int uprime = matching_order[depth];
         for (int i = 0; i < G2->GetNumVertices() - depth; i++)
         {
             if (i != 0)
-            {
-                std::tie(lb, ub) = LowerBound();
+            {   
+                Timer h2;
+                h2.Start();
+               std::tie(lb, ub) = LowerBound();
+               h2.Stop();
+               hgtime2 += h2.GetTime();
             }
             // std::cout<<"?? "<<' '<<lb<<' '<<ub<<std::endl;
 
@@ -695,6 +704,7 @@ class DFSDH : public GraphEditDistanceSolver
             assignment[depth][uprime] = -1;
             inverse_assignment[depth][vprime] = -1;
         }
+
         for (int i = 0; i < G2->GetNumVertices(); i++)
         {
             if (matrix[uprime][i] >= INF2)
@@ -716,8 +726,13 @@ class DFSDH : public GraphEditDistanceSolver
     }
     int GED()
     {
+        hgtime = 0.0;
+        hgtime2 = 0.0;
+        bdtime = 0.0;
+
         PrepareGED(nullptr);
         Initialize();
+
         ComputeBranchDistanceMatrixInitial();
         ComputeParikhVector();
         // std::cout << parikh1 << "\n";
@@ -753,6 +768,9 @@ class DFSDH : public GraphEditDistanceSolver
     double Gethgtime() const
     {
         return hgtime;
+    }
+    double Gethgtime2() const{
+        return hgtime2;
     }
     double Getbdtime() const
     {

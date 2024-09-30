@@ -47,7 +47,7 @@ class GraphSimilaritySearch {
   AStarLSa GEDSolver;
 #endif
   // AStarBMa GEDSolver;
-  double total_hg_time = 0.0, total_bd_time = 0.0;
+  double total_hg_time = 0.0, total_bd_time = 0.0, total_hg_time2 = 0.0;
   int64_t total_hungarian_vertex_num = 0;
   int64_t total_dfs_cnt = 0;
   int num_answer = 0;
@@ -114,6 +114,7 @@ public:
                   RESULT_INT64);
     /*BMa time*/
     log.AddResult("HUNGARIAN_TIME", total_hg_time, RESULT_DOUBLE_FIXED);
+    log.AddResult("HUNGARIAN_TIME_BMao", total_hg_time2, RESULT_DOUBLE_FIXED);
     log.AddResult("BranchDistance_TIME", total_bd_time, RESULT_DOUBLE_FIXED);
     log.AddResult("Hungarian_Vertices", total_hungarian_vertex_num,
                   RESULT_INT64);
@@ -214,6 +215,8 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
     GSSEntry *data = data_graphs[data_idx];
     // if (data->GetId() != query->GetId())
     //   continue;
+    // std::cout << "Query : "<< query->GetId() << "\n";
+    // std::cout << data_idx << "\n";
     GEDSolver.InitializeSolver(query, data, this->tau);
     Timer filtering_timer;
     filtering_timer.Start();
@@ -238,14 +241,13 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
 #endif
       if (ged != -1) {
         num_answer++;
-        // std::cout << "Query : "<<query->GetId() << "\n";
-        // std::cout << data_idx << "\n";
       }
 #ifdef CC
       /*AStarBMa time*/
       // total_hungarian_vertex_num += GEDSolver.GetVertNum();
       total_dfs_cnt += GEDSolver.GetCnt();
       total_hg_time += GEDSolver.Gethgtime();
+      total_hg_time2 += GEDSolver.Gethgtime2();
       total_bd_time += GEDSolver.Getbdtime();
 #endif
       verification_timer.Stop();
