@@ -63,7 +63,7 @@ class GraphEditDistanceSolver
         return r1 + r2;
     }
 
-    int *vlabel_cnt = new int[300];
+    int *vlabel_cnt = new int[300]; //fix array size
     int *elabel_cnt = new int[300];
     int *degree_q = new int[300];
     int *degree_g = new int[300];
@@ -72,8 +72,6 @@ class GraphEditDistanceSolver
     ui ged_lower_bound_filter()
     {
         ui verify_upper_bound = threshold;
-        memset(vlabel_cnt, 0, sizeof(int)*G1->GetNumVertexLabels());
-        memset(elabel_cnt, 0, sizeof(int)*G1->GetNumEdgeLabels());
         ui n = G1->GetNumVertices();
         ui m = 2 * G1->GetNumEdges();
         ui g_n = G2->GetNumVertices();
@@ -138,7 +136,6 @@ class GraphEditDistanceSolver
                 --max_degree_g;
                 continue;
             }
-
             ui td = std::min(degrees_cnt_q[max_degree_q], degrees_cnt_g[max_degree_g]);
             if (max_degree_q > max_degree_g)
                 de += td * (max_degree_q - max_degree_g);

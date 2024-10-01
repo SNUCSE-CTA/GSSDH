@@ -53,6 +53,13 @@ class GraphSimilaritySearch {
   int num_answer = 0;
   std::vector<ResultLogger> ged_logs;
 
+    int *vlabel_cnt = new int[300]; //fix array size
+    int *elabel_cnt = new int[300];
+    int *degree_q = new int[300];
+    int *degree_g = new int[300];
+    int *tmp = new int[300];
+
+
 public:
   int total_candidates = 0, total_filtered = 0;
   ResultLogger GetLog() { return log; }
