@@ -18,7 +18,8 @@
 #include "Base/DynamicHungarian.h"
 #ifdef CC
 // #include "GraphSimilarity/GraphEditDistance/AStarDH.h"
-#include "GraphSimilarity/GraphEditDistance/AStarDHo.h"
+// #include "GraphSimilarity/GraphEditDistance/AStarDHo.h"
+#include "GraphSimilarity/GraphEditDistance/DFSDH.h"
 #endif
 #ifdef COLORING
 #include "GraphSimilarity/GraphEditDistance/AStarLSa.h"
@@ -27,6 +28,7 @@
 namespace GraphLib::GraphSimilarity {
 class GraphSimilaritySearch {
   double total_filtering_time = 0.0, total_verifying_time = 0.0;
+  double total_time = 0.0;
   std::vector<GSSEntry *> data_graphs, query_graphs;
   GSSEntry *query = nullptr;
   std::vector<std::vector<int>> indexed_branch_edit_distance;
@@ -38,18 +40,26 @@ class GraphSimilaritySearch {
   ResultLogger log;
 #ifdef CC
   Hungarian *hungariansolver = nullptr;
-  AStarDHo GEDSolver;
+  // AStarDHo GEDSolver;
   // AStarDH GEDSolver;
+  DFSDH GEDSolver;
 #endif
 #ifdef COLORING
   AStarLSa GEDSolver;
 #endif
   // AStarBMa GEDSolver;
-  double total_hg_time = 0.0, total_bd_time = 0.0;
+  double total_hg_time = 0.0, total_bd_time = 0.0, total_hg_time2 = 0.0;
   int64_t total_hungarian_vertex_num = 0;
   int64_t total_dfs_cnt = 0;
   int num_answer = 0;
   std::vector<ResultLogger> ged_logs;
+
+    int *vlabel_cnt = new int[300]; //fix array size
+    int *elabel_cnt = new int[300];
+    int *degree_q = new int[300];
+    int *degree_g = new int[300];
+    int *tmp = new int[300];
+
 
 public:
   int total_candidates = 0, total_filtered = 0;
@@ -105,6 +115,7 @@ public:
     log.AddResult("NUM_FILTERED", total_filtered, RESULT_INT);
     log.AddResult("FILTERING_TIME", total_filtering_time, RESULT_DOUBLE_FIXED);
     log.AddResult("VERIFY_TIME", total_verifying_time, RESULT_DOUBLE_FIXED);
+    log.AddResult("TOTAL_TIME", total_time, RESULT_DOUBLE_FIXED);
     log.AddResult("Ans", num_answer, RESULT_INT);
     log.AddResult("TotalSearchSpace", (int64_t)Total(ged_logs, "AStarNodes"),
                   RESULT_INT64);
@@ -112,6 +123,7 @@ public:
                   RESULT_INT64);
     /*BMa time*/
     log.AddResult("HUNGARIAN_TIME", total_hg_time, RESULT_DOUBLE_FIXED);
+    log.AddResult("HUNGARIAN_TIME_BMao", total_hg_time2, RESULT_DOUBLE_FIXED);
     log.AddResult("BranchDistance_TIME", total_bd_time, RESULT_DOUBLE_FIXED);
     log.AddResult("Hungarian_Vertices", total_hungarian_vertex_num,
                   RESULT_INT64);
@@ -212,6 +224,8 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
     GSSEntry *data = data_graphs[data_idx];
     // if (data->GetId() != query->GetId())
     //   continue;
+    // std::cout << "Query : "<< query->GetId() << "\n";
+    // std::cout << data_idx << "\n";
     GEDSolver.InitializeSolver(query, data, this->tau);
     Timer filtering_timer;
     filtering_timer.Start();
@@ -236,19 +250,18 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
 #endif
       if (ged != -1) {
         num_answer++;
-        // std::cout << "Query : "<<query->GetId() << "\n";
-        // std::cout << data_idx << "\n";
       }
+      verification_timer.Stop();
+      total_verifying_time += verification_timer.GetTime();
+      verifying_time += verification_timer.GetTime();
 #ifdef CC
       /*AStarBMa time*/
       // total_hungarian_vertex_num += GEDSolver.GetVertNum();
       total_dfs_cnt += GEDSolver.GetCnt();
       total_hg_time += GEDSolver.Gethgtime();
+      total_hg_time2 += GEDSolver.Gethgtime2();
       total_bd_time += GEDSolver.Getbdtime();
 #endif
-      verification_timer.Stop();
-      total_verifying_time += verification_timer.GetTime();
-      verifying_time += verification_timer.GetTime();
     } else {
       num_filtered++;
     }
@@ -257,6 +270,7 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
   }
   total_candidates += num_candidates;
   total_filtered += num_filtered;
+  total_time = total_verifying_time + total_filtering_time;
   // fprintf(stderr, "Filtered %d out of %lu graphs\n", num_filtered,
   //         data_graphs.size());
   // fprintf(stderr, "Coloring time = %.6lf\n", coloring_time);
