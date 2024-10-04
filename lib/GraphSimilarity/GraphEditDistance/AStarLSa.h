@@ -219,9 +219,12 @@ public:
     hungarian_time += timer.GetTime();
     mapping_path = new int[combined->GetNumVertices()];
     inverse_mapping_path = new int[combined->GetNumVertices()];
-    for (int i = 0; i < combined->GetNumVertices(); i++) {
-      mapping_path[i] = mapping[i];
-      inverse_mapping_path[i] = inverse_mapping[i];
+    for (int i = 0; i < combined->combined_index; i++) {
+      mapping_path[i] = gwl->mapping[i];
+    }
+    for (int i = 0; i < combined->GetNumVertices() - combined->combined_index;
+         i++) {
+      inverse_mapping_path[i] = gwl->inverse_mapping[i];
     }
     ub = ComputeDistance(gwl->mapping, gwl->inverse_mapping, false);
     gwl->Deallocate();
@@ -250,6 +253,7 @@ public:
       if (current_state->lower_bound == -1) {
         current_state->lower_bound = current_state->aux_lower_bound;
       } else {
+        // Debug
         std::fill_n(prev_color_to_node, combined->GetNumVertices(), nullptr);
         std::fill_n(curr_color_to_node, combined->GetNumVertices(), nullptr);
         gwl->Init();
@@ -262,9 +266,12 @@ public:
                               current_state->inverse_mapping);
         timer.Stop();
         hungarian_time += timer.GetTime();
-        for (int i = 0; i < combined->GetNumVertices(); i++) {
-          mapping_path[i] = mapping[i];
-          inverse_mapping_path[i] = inverse_mapping[i];
+        for (int i = 0; i < combined->combined_index; i++) {
+          mapping_path[i] = gwl->mapping[i];
+        }
+        for (int i = 0;
+             i < combined->GetNumVertices() - combined->combined_index; i++) {
+          inverse_mapping_path[i] = gwl->inverse_mapping[i];
         }
         ub = ComputeDistance(gwl->mapping, gwl->inverse_mapping, false);
         gwl->Deallocate();
