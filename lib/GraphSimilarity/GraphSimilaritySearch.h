@@ -173,7 +173,8 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
   this->query = query_;
   this->tau = tau_;
   int num_filtered = 0, num_candidates = 0;
-  double coloring_time = 0, filtering_time = 0, verifying_time = 0;
+  double coloring_time = 0, filtering_time = 0, verifying_time = 0,
+         hungarian_time = 0;
   for (int data_idx = 0; data_idx < data_graphs.size(); data_idx++) {
     // std::cout << "Processing data graph " << data_idx << std::endl;
     GSSEntry *data = data_graphs[data_idx];
@@ -195,6 +196,7 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
       gwl->SetGraph(combined);
       int ged =
           GEDSolver.GED(combined, gwl, prev_color_to_node, curr_color_to_node);
+      hungarian_time += GEDSolver.hungarian_time;
       if (ged != -1) {
         num_answer++;
       }
@@ -215,6 +217,7 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
   fprintf(stderr, "Coloring time = %.6lf\n", coloring_time);
   fprintf(stderr, "Filtering time = %.6lf\n", filtering_time);
   fprintf(stderr, "Verifying time = %.6lf\n", verifying_time);
+  fprintf(stderr, "Hungarian time = %.6lf\n", hungarian_time);
 }
 
 int GraphSimilaritySearch::BranchBound(int data_idx) {

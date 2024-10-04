@@ -6,6 +6,9 @@ DEBUG LSadebugger(2);
 namespace GraphLib::GraphSimilarity {
 class AStarLSa : public GraphEditDistanceSolver {
 public:
+  int *mapping_path, *inverse_mapping_path;
+  int ub;
+  double hungarian_time;
   void ExtendState(State *state, GWL *gwl, ColorTree **prev_color_to_node,
                    ColorTree **curr_color_to_node) {
     if (state->cost >= current_best)
@@ -51,36 +54,14 @@ public:
           unmapped_cross_edge_labels[fa].update(G2->GetEdgeLabel(i), -1);
       }
     }
-    std::cout << "mapping: ";
-    for (int i = 0; i < G1->GetNumVertices(); i++) {
-      if (state->mapping[i] != -1)
-        std::cout << i << "->" << state->mapping[i] << " ";
-    }
-    std::cout << std::endl;
-    std::fill_n(prev_color_to_node, combined->GetNumVertices(), nullptr);
-    std::fill_n(curr_color_to_node, combined->GetNumVertices(), nullptr);
-    gwl->Init();
-    gwl->GraphColoring(3, state->mapping, state->inverse_mapping,
-                       prev_color_to_node, curr_color_to_node);
-    gwl->VertexMatching();
-    int ub = ComputeDistance(gwl->mapping, gwl->inverse_mapping, false);
-    gwl->Deallocate();
-    std::cout << "ub: " << ub << std::endl;
-    std::cout << "current_best: " << current_best << std::endl;
+
     if (ub < current_best) {
-      // printf("Coloring gives %d -> %d\n", current_best, ub);
       current_best = ub;
       if (current_best <= threshold) {
-        // if (G1->GetNumVertices() < 12) {
-        //   std::cout << "Early Termination because upper bound is " << ub
-        //             << std::endl;
-        //   std::cout << "Depth: " << depth << std::endl;
-        //   std::cout << "Query: " << G1->GetId() << std::endl;
-        //   std::cout << "Data: " << G2->GetId() << std::endl;
-        // }
         return;
       }
     }
+
     for (int v = 0; v < G2->GetNumVertices(); v++) {
       if (state->inverse_mapping[v] != -1)
         continue;
@@ -199,38 +180,10 @@ public:
       child_state->mapping[u] = v;
       child_state->inverse_mapping[v] = u;
 
-      //       // Color the combined graph
-      //       GSSEntry *combined = new GSSEntry;
-      //       CombineGraphs(G1, G2, combined);
-      //       GWL *gwl = new GWL(combined);
-      //       // gwl->SetGraph(combined);
-      //       ColorTree *prev_color_to_node[combined->GetNumVertices()];
-      //       ColorTree *curr_color_to_node[combined->GetNumVertices()];
-      //       std::fill_n(prev_color_to_node, combined->GetNumVertices(),
-      //       nullptr); std::fill_n(curr_color_to_node,
-      //       combined->GetNumVertices(), nullptr); Timer coloring_timer;
-      //       coloring_timer.Start();
-      //       int mapping_array[combined->GetNumVertices()];
-      //       int inverse_mapping_array[combined->GetNumVertices()];
-      //       std::fill_n(mapping_array, combined->GetNumVertices(), -1);
-      //       std::fill_n(inverse_mapping_array, combined->GetNumVertices(),
-      //       -1); gwl->GraphColoring(2, mapping_array, inverse_mapping_array,
-      //                          prev_color_to_node, curr_color_to_node);
-      //       // gwl->debug();
-      //       gwl->VertexMatching();
-      //       coloring_timer.Stop();
-      //       coloring_time += coloring_timer.GetTime();
-      //       // gwl->debug();
-      //       std::cout << GEDSolver.ComputeDistance(gwl->mapping,
-      //       gwl->inverse_mapping,
-      //                                              false)
-      //                 << std::endl;
-      //       gwl->Deallocate();
-      // #ifdef DEBUG_COLORING
-      //       gwl->debug();
-      // #endif
-      //       delete combined;
-      //       delete gwl;
+      if (mapping_path[u] == v) {
+        child_state->aux_lower_bound = child_state->lower_bound;
+        child_state->lower_bound = -1;
+      }
 
       LSadebugger.log("Generate Child State", 1, 2);
       LSadebugger.log(child_state->to_string(), 1, 2);
@@ -248,6 +201,7 @@ public:
 
   int GED(GSSEntry *combined, GWL *gwl, ColorTree **prev_color_to_node,
           ColorTree **curr_color_to_node) {
+    hungarian_time = 0;
     PrepareGED(combined);
     std::fill_n(prev_color_to_node, combined->GetNumVertices(), nullptr);
     std::fill_n(curr_color_to_node, combined->GetNumVertices(), nullptr);
@@ -258,11 +212,20 @@ public:
     gwl->Init();
     gwl->GraphColoring(1, mapping, inverse_mapping, prev_color_to_node,
                        curr_color_to_node);
-    gwl->MakeBipartiteGraph();
-    int ub = ComputeDistance(gwl->mapping, gwl->inverse_mapping, false);
+    Timer timer;
+    timer.Start();
+    gwl->MatchByHungarian(mapping, inverse_mapping);
+    timer.Stop();
+    hungarian_time += timer.GetTime();
+    mapping_path = new int[combined->GetNumVertices()];
+    inverse_mapping_path = new int[combined->GetNumVertices()];
+    for (int i = 0; i < combined->GetNumVertices(); i++) {
+      mapping_path[i] = mapping[i];
+      inverse_mapping_path[i] = inverse_mapping[i];
+    }
+    ub = ComputeDistance(gwl->mapping, gwl->inverse_mapping, false);
     gwl->Deallocate();
-    std::cout << "ub: " << ub << std::endl;
-    return 0;
+
     State *initial_state = new State(NULL);
     initial_state->cost = 0;
     initial_state->vertex_label_bound = 0;
@@ -272,8 +235,9 @@ public:
     initial_state->depth = -1;
     queue.push(initial_state);
     int64_t max_qsize = 1;
+    State *current_state = nullptr;
     while (!queue.empty()) {
-      State *current_state = queue.top();
+      current_state = queue.top();
       num_nodes++;
       if (num_nodes % LOG_EVERY == 0) {
         fprintf(stderr,
@@ -283,6 +247,28 @@ public:
                 current_state->lower_bound, current_state->depth, queue.size());
       }
       queue.pop();
+      if (current_state->lower_bound == -1) {
+        current_state->lower_bound = current_state->aux_lower_bound;
+      } else {
+        std::fill_n(prev_color_to_node, combined->GetNumVertices(), nullptr);
+        std::fill_n(curr_color_to_node, combined->GetNumVertices(), nullptr);
+        gwl->Init();
+        gwl->GraphColoring(1, current_state->mapping,
+                           current_state->inverse_mapping, prev_color_to_node,
+                           curr_color_to_node);
+        Timer timer;
+        timer.Start();
+        gwl->MatchByHungarian(current_state->mapping,
+                              current_state->inverse_mapping);
+        timer.Stop();
+        hungarian_time += timer.GetTime();
+        for (int i = 0; i < combined->GetNumVertices(); i++) {
+          mapping_path[i] = mapping[i];
+          inverse_mapping_path[i] = inverse_mapping[i];
+        }
+        ub = ComputeDistance(gwl->mapping, gwl->inverse_mapping, false);
+        gwl->Deallocate();
+      }
       if (current_state->lower_bound >= current_best) {
         Deallocation();
         queue = std::priority_queue<State *, std::vector<State *>,
@@ -294,19 +280,11 @@ public:
           Deallocation();
           queue = std::priority_queue<State *, std::vector<State *>,
                                       StateComparator>();
-          std::cout << "Numvertices: " << G1->GetNumVertices() << std::endl;
-          if (G1->GetNumVertices() < 8) {
-            std::cout << "Early Termination because upper bound is "
-                      << current_best << std::endl;
-            std::cout << "Depth: " << current_state->depth << std::endl;
-            std::cout << "Query: " << G1->GetId() << std::endl;
-            std::cout << "Data: " << G2->GetId() << std::endl;
-          }
           break;
         }
         if (current_state->lower_bound > threshold) {
-          current_best = -1;
           Deallocation();
+          current_best = -1;
           queue = std::priority_queue<State *, std::vector<State *>,
                                       StateComparator>();
           break;
@@ -316,6 +294,7 @@ public:
       LSadebugger.log(current_state->to_string(), 1);
       ExtendState(current_state, gwl, prev_color_to_node, curr_color_to_node);
       max_qsize = std::max(max_qsize, (int64_t)queue.size());
+      delete current_state;
     }
     if (threshold >= 0 and current_best > threshold) {
       current_best = -1;
