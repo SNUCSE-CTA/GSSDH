@@ -19,7 +19,8 @@
 
 namespace GraphLib::GraphSimilarity {
 class GraphSimilaritySearch {
-  double total_filtering_time = 0.0, total_verifying_time = 0.0;
+  double total_filtering_time = 0.0, total_verifying_time = 0.0,
+         total_hungarian_time = 0.0;
   std::vector<GSSEntry *> data_graphs, query_graphs;
   GSSEntry *query = nullptr;
   std::vector<std::vector<int>> indexed_branch_edit_distance;
@@ -78,6 +79,7 @@ public:
     log.AddResult("NUM_FILTERED", total_filtered, RESULT_INT);
     log.AddResult("FILTERING_TIME", total_filtering_time, RESULT_DOUBLE_FIXED);
     log.AddResult("VERIFY_TIME", total_verifying_time, RESULT_DOUBLE_FIXED);
+    log.AddResult("HUNGARIAN_TIME", total_hungarian_time, RESULT_DOUBLE_FIXED);
     log.AddResult("Ans", num_answer, RESULT_INT);
     log.AddResult("TotalSearchSpace", (int64_t)Total(ged_logs, "AStarNodes"),
                   RESULT_INT64);
@@ -203,6 +205,7 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
       delete combined;
       verification_timer.Stop();
       total_verifying_time += verification_timer.GetTime();
+      total_hungarian_time += GEDSolver.hungarian_time;
       verifying_time += verification_timer.GetTime();
     } else {
       num_filtered++;
