@@ -10,6 +10,8 @@
 #include "State.h"
 #include "WeisfeilerLehman.h"
 
+#include <list>
+
 namespace GraphLib::GraphSimilarity
 {
 bool verbosity = true;
@@ -29,6 +31,13 @@ class GraphEditDistanceSolver
     std::vector<int> matching_order, inv_matching_order;
     ResultLogger log;
 
+    // int *vlabel_cnt;
+    // int *elabel_cnt;
+    // int *degree_q;
+    // int *degree_g;
+    // int *tmp;
+
+
   public:
     void InitializeSolver(GSSEntry *G1_, GSSEntry *G2_, int threshold_ = -1)
     {
@@ -47,11 +56,23 @@ class GraphEditDistanceSolver
         }
         // this->threshold = threshold_;
         this->threshold = threshold_;
+        // vlabel_cnt = new int[300]; //fix array size
+        // elabel_cnt = new int[300];
+        // degree_q = new int[300];
+        // degree_g = new int[300];
+        // tmp = new int[300];
+
     }
     /*
      * Function for filtering
      * used for GED verification tasks
      */
+
+    int *vlabel_cnt = new int[300]; //fix array size
+    int *elabel_cnt = new int[300];
+    int *degree_q = new int[300];
+    int *degree_g = new int[300];
+    int *tmp = new int[300];
 
     using ui = unsigned int;
     ui size_based_bound()
@@ -62,12 +83,6 @@ class GraphEditDistanceSolver
         ui r2 = G1->GetNumEdges() > G2->GetNumEdges() ? G1->GetNumEdges() - G2->GetNumEdges()  : G2->GetNumEdges() - G1->GetNumEdges();
         return r1 + r2;
     }
-
-    int *vlabel_cnt = new int[300]; //fix array size
-    int *elabel_cnt = new int[300];
-    int *degree_q = new int[300];
-    int *degree_g = new int[300];
-    int *tmp = new int[300];
 
     ui ged_lower_bound_filter()
     {
@@ -301,6 +316,7 @@ class GraphEditDistanceSolver
     void ComputeMatchingOrder()
     {
         int N = G1->GetNumVertices();
+        /**/
         std::vector<int> T(N, 0), w(N, 0);
         auto vlabel_freq = G1->GetVertexLabelFrequency();
         auto elabel_freq = G1->GetEdgeLabelFrequency();
@@ -337,11 +353,57 @@ class GraphEditDistanceSolver
                 matching_order.push_back(i);
             }
         }
+        
+       
         inv_matching_order.resize(G1->GetNumVertices(), -1);
         for (int i = 0; i < G1->GetNumVertices(); i++)
         {
             inv_matching_order[matching_order[i]] = i;
         }
+        /**/
+
+        /*
+        using std::vector;
+        using std::queue;
+        using std::stack;
+        using std::pair;
+        using std::cerr;
+        using std::endl;
+
+        matching_order.reserve(N);
+        inv_matching_order.resize(N, -1);
+
+        vector<int> marked(N, 0);
+
+        int num_iter = 0;
+        while (matching_order.size() < N) {
+            ++num_iter;
+            int root = -1;
+            for (int u = 0; u < N; ++u) {
+                if (!marked[u] && (root == -1 || G1->GetDegree(root) > G1->GetDegree(u))) {
+                    root = u;
+                }
+            }
+
+            queue<int> Q;
+            Q.push(root);
+            marked[root] = true;
+            while (!Q.empty()) {
+                const int u = Q.front(); Q.pop();
+                
+                inv_matching_order[ matching_order.size() ] = u;
+                matching_order.push_back(u);
+
+                for (const int v: G1->GetNeighbors(u)) {
+                    if (marked[v]) {
+                        continue;
+                    }
+                    marked[v] = true;
+                    Q.push(v);
+                }
+            }
+        }
+        */
     }
 
     int GetChildEditCost(State *parent_state, int u, int v)

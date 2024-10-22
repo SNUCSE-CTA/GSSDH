@@ -595,6 +595,7 @@ std::pair<int, int> LowerBound()
         ub = ComputeDistance(assignment[depth], inverse_assignment[depth]);
     }
     // std::cout<<lb<<' '<<ub<<std::endl;
+    // std::cout << "mapping cost : " <<cost << " hungarian cost : " << total_cost << "\n";
     return {lb, ub};
 }
 
@@ -653,7 +654,8 @@ void DFS(int u, int v)
         depth--;
         return;
     }
-    // std::cout << u << " " << v <<  " " << flag <<'\n';
+    Timer timer;
+    timer.Start();
     if (depth != 0)
     {
         assignment[depth] = assignment[depth - 1]; // copy from parent
@@ -664,13 +666,17 @@ void DFS(int u, int v)
         inverse_mapping[v] = u;
         Match(u, v);
         chcost = ChildEditCost(u, v);
+        // std::cout << u << " " << v << " "<<chcost << "\n";
         cost += chcost;
         ComputeBranchDistanceMatrixDynamic(u, v, 1);
         UpdateParikhVector(u, v);
     }
+    timer.Stop();
+    bdtime += timer.GetTime();
     Timer h1;
     h1.Start();
     auto [lb, ub] = LowerBound();
+            // std::cout << assignment[depth] << "\n";
     h1.Stop();
     hgtime += h1.GetTime();
     // std::cout <<u << " " << v << " " << lb << " " <<ub << "\n";
@@ -689,8 +695,9 @@ void DFS(int u, int v)
 
         int vprime = assignment[depth][uprime];
         // if(uprime == 10){
-        // std::cout<< uprime<<' '<<vprime<<' '<<lb<<' '<<ub<<std::endl;
-        // std::cout<< assignment[depth] << "\n";
+        // std::cout << "Depth : " << depth << "\nu : " << uprime<< "\nv : "<<vprime<<"\nlb  : "<<lb<<"\nub : "<<ub<<std::endl;
+        // std::cout << "Assignment : "<< assignment[depth] << "\n";
+        // std::cout <<"mapping : " << mapping << "\n";
         // PrintMatrix();
         // }
         if (lb > tau)
@@ -763,7 +770,7 @@ void PrintMatrix()
     {
         for (int j = 0; j < G2->GetNumVertices(); j++)
         {
-            std::cout << matrix[i][j] << " ";
+            std::cout << matrix[i][j] << "   ";
         }
         std::cout << "\n";
     }

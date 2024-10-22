@@ -54,11 +54,11 @@ class GraphSimilaritySearch {
   int num_answer = 0;
   std::vector<ResultLogger> ged_logs;
 
-    int *vlabel_cnt = new int[300]; //fix array size
-    int *elabel_cnt = new int[300];
-    int *degree_q = new int[300];
-    int *degree_g = new int[300];
-    int *tmp = new int[300];
+    // int *vlabel_cnt = new int[300]; //fix array size
+    // int *elabel_cnt = new int[300];
+    // int *degree_q = new int[300];
+    // int *degree_g = new int[300];
+    // int *tmp = new int[300];
 
 
 public:
@@ -250,6 +250,9 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
 #endif
       if (ged != -1) {
         num_answer++;
+        // std::cout << "Query : "<< query->GetId() << "\n";
+        // std::cout << "Data : " << data->GetId() << "\n";
+        // std::cout << query->GetNumVertices() << "\n";
       }
       verification_timer.Stop();
       total_verifying_time += verification_timer.GetTime();
