@@ -30,6 +30,7 @@ class DFSDH : public GraphEditDistanceSolver
     unsigned int *prev;
     unsigned int *queue;
     bool flag = false;
+    int current_best = 1e3;
 
     const int INF = 1e3;
     const int INF2 = 1e5;
@@ -56,17 +57,17 @@ class DFSDH : public GraphEditDistanceSolver
         matrix = std::vector<std::vector<int>>(G2->GetNumVertices(), std::vector<int>(G2->GetNumVertices(), 0));
         mapping = std::vector<int>(G2->GetNumVertices(), -1);
         inverse_mapping = std::vector<int>(G2->GetNumVertices(), -1);
-        assignment = std::vector<std::vector<int>>(G1->GetNumVertices() + 1,
+        assignment = std::vector<std::vector<int>>(G1->GetNumVertices() + 2,
                                                    std::vector<int>(G2->GetNumVertices(), -1)); // hungarian
         inverse_assignment =
-            std::vector<std::vector<int>>(G2->GetNumVertices() + 1, std::vector<int>(G2->GetNumVertices(), -1));
-        alpha = std::vector<std::vector<int>>(G1->GetNumVertices() + 1, std::vector<int>(G2->GetNumVertices(), 0));
-        beta = std::vector<std::vector<int>>(G1->GetNumVertices() + 1, std::vector<int>(G2->GetNumVertices(), 0));
+            std::vector<std::vector<int>>(G2->GetNumVertices() + 2, std::vector<int>(G2->GetNumVertices(), -1));
+        alpha = std::vector<std::vector<int>>(G1->GetNumVertices() + 2, std::vector<int>(G2->GetNumVertices(), 0));
+        beta = std::vector<std::vector<int>>(G1->GetNumVertices() + 2, std::vector<int>(G2->GetNumVertices(), 0));
         row = std::vector<bool>(G1->GetNumVertices(), false);
         col = std::vector<bool>(G2->GetNumVertices(), false);
-        parikh1.assign(G1->GetNumVertices(),
+        parikh1.assign(G1->GetNumVertices()+1,
                        std::vector<int>(std::max(G1->GetNumEdgeLabels(), G2->GetNumEdgeLabels()), 0));
-        parikh2.assign(G2->GetNumVertices(),
+        parikh2.assign(G2->GetNumVertices()+1,
                        std::vector<int>(std::max(G1->GetNumEdgeLabels(), G2->GetNumEdgeLabels()), 0));
         N = G2->GetNumVertices();
         visX = new char[N];
@@ -80,11 +81,12 @@ class DFSDH : public GraphEditDistanceSolver
         total_cost = 0;
         // lb = 0;
         // ub = 0;
-        depth = -1;
         cost = 0; // mapping cost
         flag = false;
         cnt = 0;
         init = false;
+        current_best = 1e3;
+        tau = -1;
     }
     using ui = unsigned int;
 
@@ -109,10 +111,10 @@ class DFSDH : public GraphEditDistanceSolver
 
     int Hungarian(char initialization)
 {
-    int *mx = assignment[depth].data();
-    int *my = inverse_assignment[depth].data();
-    int *lx = alpha[depth].data();
-    int *ly = beta[depth].data();
+    int *mx = assignment[depth+1].data();
+    int *my = inverse_assignment[depth+1].data();
+    int *lx = alpha[depth+1].data();
+    int *ly = beta[depth+1].data();
     ui n = N;
     if (initialization)
     { // Initialization
@@ -275,10 +277,10 @@ void ChangeAlphaBeta(std::vector<bool> &row, std::vector<bool> &col)
     {
         if (row[i] == true)
         {
-            alpha[depth][i] = INF;
+            alpha[depth+1][i] = INF;
             for (int j = 0; j < G2->GetNumVertices(); j++)
             {
-                alpha[depth][i] = std::min(alpha[depth][i], matrix[i][j] - beta[depth][j]);
+                alpha[depth+1][i] = std::min(alpha[depth+1][i], matrix[i][j] - beta[depth+1][j]);
             }
         }
     }
@@ -286,21 +288,21 @@ void ChangeAlphaBeta(std::vector<bool> &row, std::vector<bool> &col)
     {
         if (col[j] == true)
         {
-            beta[depth][j] = INF;
+            beta[depth+1][j] = INF;
             for (int i = 0; i < G2->GetNumVertices(); i++)
             {
-                beta[depth][j] = std::min(beta[depth][j], matrix[i][j] - alpha[depth][i]);
+                beta[depth+1][j] = std::min(beta[depth+1][j], matrix[i][j] - alpha[depth+1][i]);
             }
         }
     }
     for (int i = 0; i < G2->GetNumVertices(); i++)
     {
         int u = i;
-        int v = assignment[depth][u];
-        if (v != -1 && alpha[depth][u] + beta[depth][v] != matrix[u][v])
+        int v = assignment[depth+1][u];
+        if (v != -1 && alpha[depth+1][u] + beta[depth+1][v] != matrix[u][v])
         {
-            assignment[depth][u] = -1;
-            inverse_assignment[depth][v] = -1;
+            assignment[depth+1][u] = -1;
+            inverse_assignment[depth+1][v] = -1;
         }
     }
 }
@@ -572,7 +574,7 @@ int ChildEditCost(int u, int v)
 
 std::pair<int, int> LowerBound()
 {
-    int ub = tau + 1, lb = 0;
+    int ub = current_best + 1, lb = 0;
     if (!init)
     {
         // if(tau == 0) {total_cost = Hungarian(1);}
@@ -592,7 +594,7 @@ std::pair<int, int> LowerBound()
     // std::cout<<inverse_assignment[depth]<<std::endl;
     if (lb <= tau)
     {
-        ub = ComputeDistance(assignment[depth], inverse_assignment[depth]);
+        ub = ComputeDistance(assignment[depth+1], inverse_assignment[depth+1]);
     }
     // std::cout<<lb<<' '<<ub<<std::endl;
     // std::cout << "mapping cost : " <<cost << " hungarian cost : " << total_cost << "\n";
@@ -602,10 +604,10 @@ std::pair<int, int> LowerBound()
 void ChangeCostINF(int u, int v)
 {
     matrix[u][v] += INF;
-    if (assignment[depth][u] == v)
+    if (assignment[depth+1][u] == v)
     {
-        assignment[depth][u] = -1;
-        inverse_assignment[depth][v] = -1;
+        assignment[depth+1][u] = -1;
+        inverse_assignment[depth+1][v] = -1;
     }
 }
 void Match(int u, int v)
@@ -654,14 +656,14 @@ void DFS(int u, int v)
         depth--;
         return;
     }
-    Timer timer;
-    timer.Start();
+    // Timer timer;
+    // timer.Start();
+    assignment[depth+1] = assignment[depth]; // copy from parent
+    inverse_assignment[depth+1] = inverse_assignment[depth];
+    alpha[depth+1] = alpha[depth];
+    beta[depth+1] = beta[depth];
     if (depth != 0)
     {
-        assignment[depth] = assignment[depth - 1]; // copy from parent
-        inverse_assignment[depth] = inverse_assignment[depth - 1];
-        alpha[depth] = alpha[depth - 1];
-        beta[depth] = beta[depth - 1];
         mapping[u] = v;
         inverse_mapping[v] = u;
         Match(u, v);
@@ -671,52 +673,37 @@ void DFS(int u, int v)
         ComputeBranchDistanceMatrixDynamic(u, v, 1);
         UpdateParikhVector(u, v);
     }
-    timer.Stop();
-    bdtime += timer.GetTime();
-    Timer h1;
-    h1.Start();
-    auto [lb, ub] = LowerBound();
-            // std::cout << assignment[depth] << "\n";
-    h1.Stop();
-    hgtime += h1.GetTime();
-    // std::cout <<u << " " << v << " " << lb << " " <<ub << "\n";
+    int lb, ub;
     int uprime = matching_order[depth];
     for (int i = 0; i < G2->GetNumVertices() - depth; i++)
     {
-        if (i != 0)
-        {
-            Timer h2;
-            h2.Start();
-            std::tie(lb, ub) = LowerBound();
-            h2.Stop();
-            hgtime2 += h2.GetTime();
-        }
-        // std::cout<<"?? "<<' '<<lb<<' '<<ub<<std::endl;
+        std::tie(lb, ub) = LowerBound();
 
-        int vprime = assignment[depth][uprime];
-        // if(uprime == 10){
-        // std::cout << "Depth : " << depth << "\nu : " << uprime<< "\nv : "<<vprime<<"\nlb  : "<<lb<<"\nub : "<<ub<<std::endl;
-        // std::cout << "Assignment : "<< assignment[depth] << "\n";
-        // std::cout <<"mapping : " << mapping << "\n";
-        // PrintMatrix();
-        // }
+        int vprime = assignment[depth+1][uprime];
+
+        // std::cout <<tau<< " "<<u << " " << v<<" " << uprime<<' '<< vprime<< " " << lb << " " <<ub << "\n";
+        // std::cout<< current_best<<"\n";
+
         if (lb > tau)
         {
             break;
         }
-        if (ub <= tau)
-        {
-            flag = true;
-            return;
+        if(ub < current_best){
+            current_best = ub;
+            if(current_best <= tau){
+                flag = true;
+                return;
+            }
         }
+
         DFS(uprime, vprime);
         // std::cout<< "ret "<< uprime<<' '<<vprime<<' '<<lb<<' '<<ub<<std::endl;
 
         if (flag)
             return;
         matrix[uprime][vprime] += INF2;
-        assignment[depth][uprime] = -1;
-        inverse_assignment[depth][vprime] = -1;
+        assignment[depth+1][uprime] = -1;
+        inverse_assignment[depth+1][vprime] = -1;
     }
 
     for (int i = 0; i < G2->GetNumVertices(); i++)
@@ -749,14 +736,27 @@ int GED()
 
     ComputeBranchDistanceMatrixInitial();
     ComputeParikhVector();
+    tau = 0;
+    depth = -1;
+    auto [lb, ub] = LowerBound();
     // std::cout << parikh1 << "\n";
     // PrintMatrix();
     // exit(0);
-    tau = threshold;
-    DFS(-1, -1);
+    current_best = ub;
+    cnt++;
+    while(true){
+        if(current_best <= tau) break;
+        cnt--;
+        depth = -1;
+        DFS(-1, -1);
+        // printf("tau, current_best: %d, %d\n", tau, current_best);
+        tau++;
+    }
+    printf("ged(G_%d, G_%d) = %d (%d nodes)\n", G1->GetId(), G2->GetId(), current_best, cnt);
+    fflush(stdout);
     // filtering_lb = GEDVerificiationFiltering();
     // IterativeDeepningSearch();
-    if (flag)
+    if (current_best <= threshold)
     {
         return 0;
     }

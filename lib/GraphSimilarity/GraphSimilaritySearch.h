@@ -229,7 +229,8 @@ void GraphSimilaritySearch::RetrieveSimilarGraphs(
     GEDSolver.InitializeSolver(query, data, this->tau);
     Timer filtering_timer;
     filtering_timer.Start();
-    bool filtering_result = GEDSolver.GEDVerificiationFiltering();
+    // bool filtering_result = GEDSolver.GEDVerificiationFiltering();
+    bool filtering_result = true;
     filtering_timer.Stop();
     total_filtering_time += filtering_timer.GetTime();
     filtering_time += filtering_timer.GetTime();
