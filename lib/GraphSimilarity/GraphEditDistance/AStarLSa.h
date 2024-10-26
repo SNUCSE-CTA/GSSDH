@@ -58,6 +58,7 @@ public:
     if (ub < current_best) {
       current_best = ub;
       if (current_best <= threshold) {
+        // std::cout << "Early Termination because of UB = " << ub << std::endl;
         return;
       }
     }
@@ -201,6 +202,7 @@ public:
 
   int GED(GSSEntry *combined, GWL *gwl, ColorTree **prev_color_to_node,
           ColorTree **curr_color_to_node) {
+    int initial_ub = 0;
     hungarian_time = 0;
     PrepareGED(combined);
     std::fill_n(prev_color_to_node, combined->GetNumVertices(), nullptr);
@@ -210,11 +212,12 @@ public:
     std::fill_n(mapping, combined->GetNumVertices(), -1);
     std::fill_n(inverse_mapping, combined->GetNumVertices(), -1);
     gwl->Init();
-    gwl->GraphColoring(1, mapping, inverse_mapping, prev_color_to_node,
+    gwl->GraphColoring(5, mapping, inverse_mapping, prev_color_to_node,
                        curr_color_to_node);
     Timer timer;
     timer.Start();
-    gwl->MatchByHungarian(mapping, inverse_mapping);
+    // gwl->MatchByHungarian(mapping, inverse_mapping);
+    gwl->VertexMatching();
     timer.Stop();
     hungarian_time += timer.GetTime();
     mapping_path = new int[combined->GetNumVertices()];
@@ -227,6 +230,8 @@ public:
       inverse_mapping_path[i] = gwl->inverse_mapping[i];
     }
     ub = ComputeDistance(gwl->mapping, gwl->inverse_mapping, false);
+    initial_ub = ub;
+    // std::cout << "Coloring gave UB = " << ub << std::endl;
     gwl->Deallocate();
 
     State *initial_state = new State(NULL);
@@ -252,18 +257,33 @@ public:
       queue.pop();
       if (current_state->lower_bound == -1) {
         current_state->lower_bound = current_state->aux_lower_bound;
+        // Debug
+        // std::cout << "Directly set lower bound to "
+        //           << current_state->lower_bound << std::endl;
+        // std::cout << "Matching: ";
+        // for (int i = 0; i < combined->combined_index; i++) {
+        //   std::cout << i << " -> " << current_state->mapping[i] << " ";
+        // }
+        // std::cout << std::endl;
+        // std::cout << "Mapping path: ";
+        // for (int i = 0; i < combined->combined_index; i++) {
+        //   std::cout << i << " -> " << mapping_path[i] << " ";
+        // }
+        // std::cout << std::endl;
       } else {
         // Debug
+        // std::cout << "Coloring and Hungarian" << std::endl;
         std::fill_n(prev_color_to_node, combined->GetNumVertices(), nullptr);
         std::fill_n(curr_color_to_node, combined->GetNumVertices(), nullptr);
         gwl->Init();
-        gwl->GraphColoring(1, current_state->mapping,
+        gwl->GraphColoring(5, current_state->mapping,
                            current_state->inverse_mapping, prev_color_to_node,
                            curr_color_to_node);
         Timer timer;
         timer.Start();
-        gwl->MatchByHungarian(current_state->mapping,
-                              current_state->inverse_mapping);
+        // gwl->MatchByHungarian(current_state->mapping,
+        //                       current_state->inverse_mapping);
+        gwl->VertexMatching();
         timer.Stop();
         hungarian_time += timer.GetTime();
         for (int i = 0; i < combined->combined_index; i++) {
@@ -274,6 +294,7 @@ public:
           inverse_mapping_path[i] = gwl->inverse_mapping[i];
         }
         ub = ComputeDistance(gwl->mapping, gwl->inverse_mapping, false);
+        // std::cout << "Coloring gave UB = " << ub << std::endl;
         gwl->Deallocate();
       }
       if (current_state->lower_bound >= current_best) {
@@ -300,9 +321,21 @@ public:
       LSadebugger.log("Current QueueTop State", 1);
       LSadebugger.log(current_state->to_string(), 1);
       ExtendState(current_state, gwl, prev_color_to_node, curr_color_to_node);
+      if (threshold >= 0) {
+        if (current_best < threshold) {
+          Deallocation();
+          queue = std::priority_queue<State *, std::vector<State *>,
+                                      StateComparator>();
+          break;
+        }
+      }
       max_qsize = std::max(max_qsize, (int64_t)queue.size());
       delete current_state;
     }
+    std::cout << "query id: " << G1->GetId() << ", target id: " << G2->GetId()
+              << std::endl;
+    std::cout << "Initial ub:" << initial_ub << ", ub: " << ub
+              << ", current_best: " << current_best << std::endl;
     if (threshold >= 0 and current_best > threshold) {
       current_best = -1;
     }

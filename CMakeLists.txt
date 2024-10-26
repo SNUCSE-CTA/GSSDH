@@ -13,7 +13,7 @@ else()
     set(CMAKE_CXX_COMPILER /usr/bin/g++)
     message(STATUS "C Compiler: ${CMAKE_C_COMPILER}")
     message(STATUS "C++ Compiler: ${CMAKE_CXX_COMPILER}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++23 -Ofast -Wno-psabi -DCOLORING")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++23 -Ofast -Wno-psabi -DCOLORING -DDEGREE_COLORING")
     # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++23 -Ofast -Wno-psabi -fsanitize=address -g")
 endif()
 

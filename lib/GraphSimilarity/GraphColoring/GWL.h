@@ -130,8 +130,8 @@ void GWL::GraphColoring(const int iter, int *mapping_array,
 #ifdef DEGREE_COLORING
   int relaxed_color[100];
   std::fill(relaxed_color, relaxed_color + 100, -1);
-  int fixed_color[100];
-  std::fill(fixed_color, fixed_color + 100, -1);
+  int fixed_color[100][100];
+  std::fill(fixed_color[0], fixed_color[0] + 10000, -1);
 #else
   int relaxed_color[1000];
   std::fill(relaxed_color, relaxed_color + 1000, -1);
@@ -157,12 +157,12 @@ void GWL::GraphColoring(const int iter, int *mapping_array,
       }
       int curr_color = 0;
       if (fixed_degree > 0) {
-        if (fixed_color[fixed_degree] == -1) {
-          fixed_color[fixed_degree] = next_color;
+        if (fixed_color[fixed_degree][degree] == -1) {
+          fixed_color[fixed_degree][degree] = next_color;
           curr_color = next_color;
           next_color++;
         } else {
-          curr_color = fixed_color[fixed_degree];
+          curr_color = fixed_color[fixed_degree][degree];
         }
       } else {
         if (relaxed_color[degree] == -1) {
