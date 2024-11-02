@@ -10,6 +10,7 @@ class DFSDH : public GraphEditDistanceSolver
     std::vector<std::vector<int>> matrix;
     std::vector<int> mapping; // real mapping
     std::vector<int> inverse_mapping;
+    std::vector<char> temp_visited;
     std::vector<std::vector<int>> assignment; // for hungarian, assignment[depth][u]
     std::vector<std::vector<int>> inverse_assignment;
     std::vector<std::vector<int>> parikh1;
@@ -20,8 +21,8 @@ class DFSDH : public GraphEditDistanceSolver
     std::vector<std::vector<int>> alpha;
     std::vector<std::vector<int>> beta;
 
-    std::vector<bool> row;
-    std::vector<bool> col;
+    std::vector<char> row;
+    std::vector<char> col;
 
     char *visX;
     char *visY;
@@ -54,6 +55,7 @@ class DFSDH : public GraphEditDistanceSolver
     int filtering_lb = 0;
     void Initialize()
     {
+        temp_visited = std::vector<char> (G1->GetNumVertices(), 0);
         matrix = std::vector<std::vector<int>>(G2->GetNumVertices(), std::vector<int>(G2->GetNumVertices(), 0));
         mapping = std::vector<int>(G2->GetNumVertices(), -1);
         inverse_mapping = std::vector<int>(G2->GetNumVertices(), -1);
@@ -63,8 +65,8 @@ class DFSDH : public GraphEditDistanceSolver
             std::vector<std::vector<int>>(G2->GetNumVertices() + 2, std::vector<int>(G2->GetNumVertices(), -1));
         alpha = std::vector<std::vector<int>>(G1->GetNumVertices() + 2, std::vector<int>(G2->GetNumVertices(), 0));
         beta = std::vector<std::vector<int>>(G1->GetNumVertices() + 2, std::vector<int>(G2->GetNumVertices(), 0));
-        row = std::vector<bool>(G1->GetNumVertices(), false);
-        col = std::vector<bool>(G2->GetNumVertices(), false);
+        row = std::vector<char>(G1->GetNumVertices(), false);
+        col = std::vector<char>(G2->GetNumVertices(), false);
         parikh1.assign(G1->GetNumVertices()+1,
                        std::vector<int>(std::max(G1->GetNumEdgeLabels(), G2->GetNumEdgeLabels()), 0));
         parikh2.assign(G2->GetNumVertices()+1,
@@ -153,6 +155,7 @@ class DFSDH : public GraphEditDistanceSolver
     }
     int lb = cost + ((acc + 1) / 2);
     if (lb > tau)
+    // if (lb >= current_best)
     {
         return acc;
     }
@@ -224,6 +227,7 @@ class DFSDH : public GraphEditDistanceSolver
                 }
                 lb = cost + ((acc + 1) / 2);
                 if (lb > tau)
+                // if (lb >= current_best)
                 {
                     return acc;
                 }
@@ -271,7 +275,7 @@ class DFSDH : public GraphEditDistanceSolver
     return acc;
 }
 
-void ChangeAlphaBeta(std::vector<bool> &row, std::vector<bool> &col)
+void ChangeAlphaBeta(std::vector<char> &row, std::vector<char> &col)
 {
     for (int i = 0; i < row.size(); i++)
     {
@@ -593,6 +597,7 @@ std::pair<int, int> LowerBound()
     // std::cout<<assignment[depth]<<std::endl;
     // std::cout<<inverse_assignment[depth]<<std::endl;
     if (lb <= tau)
+    // if (lb < current_best)
     {
         ub = ComputeDistance(assignment[depth+1], inverse_assignment[depth+1]);
     }
@@ -645,7 +650,210 @@ void RemoveMatch(int u, int v)
     }
 }
 
-// stop dfs
+// IDS dfs
+// void DFS(int u, int v)
+// {
+//     cnt++;
+//     depth++;
+//     int chcost = 0;
+//     if (depth == G1->GetNumVertices())
+//     {
+//         depth--;
+//         return;
+//     }
+//     // Timer timer;
+//     // timer.Start();
+//     assignment[depth+1] = assignment[depth]; // copy from parent
+//     inverse_assignment[depth+1] = inverse_assignment[depth];
+//     alpha[depth+1] = alpha[depth];
+//     beta[depth+1] = beta[depth];
+//     if (depth != 0)
+//     {
+//         mapping[u] = v;
+//         inverse_mapping[v] = u;
+//         Match(u, v);
+//         chcost = ChildEditCost(u, v);
+//         // std::cout << u << " " << v << " "<<chcost << "\n";
+//         cost += chcost;
+//         ComputeBranchDistanceMatrixDynamic(u, v, 1);
+//         UpdateParikhVector(u, v);
+//     }
+//     int lb, ub;
+//     int uprime = matching_order[depth];
+//     for (int i = 0; i < G2->GetNumVertices() - depth; i++)
+//     {
+//         std::tie(lb, ub) = LowerBound();
+
+//         int vprime = assignment[depth+1][uprime];
+
+//         // std::cout <<tau<< " "<<u << " " << v<<" " << uprime<<' '<< vprime<< " " << lb << " " <<ub << "\n";
+//         // std::cout<< current_best<<"\n";
+
+//         if (lb > tau)
+//         {
+//             break;
+//         }
+//         if(ub < current_best){
+//             current_best = ub;
+//             if(current_best <= tau){
+//                 flag = true;
+//                 return;
+//             }
+//         }
+
+//         DFS(uprime, vprime);
+//         // std::cout<< "ret "<< uprime<<' '<<vprime<<' '<<lb<<' '<<ub<<std::endl;
+
+//         if (flag)
+//             return;
+//         matrix[uprime][vprime] += INF2;
+//         assignment[depth+1][uprime] = -1;
+//         inverse_assignment[depth+1][vprime] = -1;
+//     }
+
+//     for (int i = 0; i < G2->GetNumVertices(); i++)
+//     {
+//         if (matrix[uprime][i] >= INF2)
+//         {
+//             matrix[uprime][i] -= INF2;
+//         }
+//     }
+
+//     if (depth != 0)
+//     {
+//         RestoreParikhVector(u, v);
+//         ComputeBranchDistanceMatrixDynamic(u, v, 0);
+//         mapping[u] = -1;
+//         inverse_mapping[v] = -1;
+//         RemoveMatch(u, v);
+//         cost -= chcost;
+//     }
+//     depth--;
+// }
+
+// // IDS Ordering
+// void DFS(int u, int v)
+// {
+//     cnt++;
+//     depth++;
+//     int chcost = 0;
+//     if (depth == G1->GetNumVertices())
+//     {
+//         depth--;
+//         return;
+//     }
+//     // Timer timer;
+//     // timer.Start();
+//     assignment[depth+1] = assignment[depth]; // copy from parent
+//     inverse_assignment[depth+1] = inverse_assignment[depth];
+//     alpha[depth+1] = alpha[depth];
+//     beta[depth+1] = beta[depth];
+//     if (depth != 0)
+//     {
+//         mapping[u] = v;
+//         inverse_mapping[v] = u;
+//         Match(u, v);
+//         chcost = ChildEditCost(u, v);
+//         // std::cout << u << " " << v << " "<<chcost << "\n";
+//         cost += chcost;
+//         ComputeBranchDistanceMatrixDynamic(u, v, 1);
+//         UpdateParikhVector(u, v);
+//     }
+//     int lb, ub;
+//     // int uprime = matching_order[depth];
+//     std::stack<std::pair<int, int>> uv;
+//     // for (int k = 0; k < G2->GetNumVertices() - depth; k++){
+//     while(true){
+//         std::tie(lb, ub) = LowerBound();
+//         bool valid = true;
+//         if (lb > tau){
+//             break;
+//         }
+//         if(ub < current_best){
+//             current_best = ub;
+//             if(current_best <= tau){
+//                 flag = true;
+//                 return;
+//             }
+//         }
+//         fill(temp_visited.begin(), temp_visited.end(), 0);
+//         int uprime = -1, vprime = -1, lb_prime = -1;
+//         for(int i = 0; i < G1->GetNumVertices(); i++){
+//             if(mapping[i] != -1 || temp_visited[i]) continue;
+//             int j = assignment[depth+1][i];
+//             matrix[i][j] += INF2;
+//             depth++;
+//             assignment[depth+1] = assignment[depth]; // copy from parent
+//             inverse_assignment[depth+1] = inverse_assignment[depth];
+//             alpha[depth+1] = alpha[depth];
+//             beta[depth+1] = beta[depth];
+//             assignment[depth+1][i] = -1;
+//             inverse_assignment[depth+1][j] = -1;
+//             int hung = Hungarian(0);
+//             // auto [new_lb, new_ub] = LowerBound();
+//             int new_lb = cost + ((hung + 1) / 2);
+//             if(new_lb > lb_prime){
+//             // if(new_lb > lb_prime && new_lb > tau){
+//                 lb_prime = new_lb;
+//                 uprime = i;
+//                 vprime = j;
+//             }
+//             // if(new_ub < current_best){
+//             //     current_best = new_ub;
+//             //     if(current_best <= tau){
+//             //         flag = true;
+//             //         return;
+//             //     }
+//             // }
+//             matrix[i][j] -= INF2;
+//             depth--;
+//             if(lb_prime > tau) break;
+//             for(int k = i+1; k < G1->GetNumVertices(); k++){
+//                 if(assignment[depth+2][k] != assignment[depth+1][k]){
+//                     temp_visited[k] = true;
+//                 }
+//             }
+//         }
+//         // if(depth == 0) printf("selected: %d, %d\n",uprime, vprime);
+//         // if(uprime == -1){
+//         //     for(int d = 0; d < G1->GetNumVertices(); d++){
+//         //         uprime = matching_order[d];
+//         //         if(mapping[uprime] == -1){
+//         //             vprime = assignment[depth+1][uprime];
+//         //             break;
+//         //         }
+//         //     }
+//         // }
+//         DFS(uprime, vprime);
+//         // if(depth==0) printf("depth 0, ged(G_%d, G_%d) = %d (%lld nodes)\n", G1->GetId(), G2->GetId(), current_best, cnt);
+//         // std::cout<< "ret "<< uprime<<' '<<vprime<<' '<<lb<<' '<<ub<<std::endl;
+
+//         if (flag)
+//             return;
+//         uv.emplace(uprime, vprime);
+//         matrix[uprime][vprime] += INF2;
+//         assignment[depth+1][uprime] = -1;
+//         inverse_assignment[depth+1][vprime] = -1;
+//     }
+
+//     while(!uv.empty()){
+//         auto [uprime, vprime] = uv.top();
+//         uv.pop();
+//         matrix[uprime][vprime] -= INF2;
+//     }
+
+//     if (depth != 0){
+//         RestoreParikhVector(u, v);
+//         ComputeBranchDistanceMatrixDynamic(u, v, 0);
+//         mapping[u] = -1;
+//         inverse_mapping[v] = -1;
+//         RemoveMatch(u, v);
+//         cost -= chcost;
+//     }
+//     depth--;
+// }
+
+// DFS Ordering
 void DFS(int u, int v)
 {
     cnt++;
@@ -674,18 +882,13 @@ void DFS(int u, int v)
         UpdateParikhVector(u, v);
     }
     int lb, ub;
-    int uprime = matching_order[depth];
-    for (int i = 0; i < G2->GetNumVertices() - depth; i++)
-    {
+    // int uprime = matching_order[depth];
+    std::stack<std::pair<int, int>> uv;
+    // for (int k = 0; k < G2->GetNumVertices() - depth; k++){
+    while(true){
         std::tie(lb, ub) = LowerBound();
-
-        int vprime = assignment[depth+1][uprime];
-
-        // std::cout <<tau<< " "<<u << " " << v<<" " << uprime<<' '<< vprime<< " " << lb << " " <<ub << "\n";
-        // std::cout<< current_best<<"\n";
-
-        if (lb > tau)
-        {
+        bool valid = true;
+        if (lb > tau){
             break;
         }
         if(ub < current_best){
@@ -695,27 +898,73 @@ void DFS(int u, int v)
                 return;
             }
         }
-
+        fill(temp_visited.begin(), temp_visited.end(), 0);
+        int uprime = -1, vprime = -1, lb_prime = -1;
+        for(int i = 0; i < G1->GetNumVertices(); i++){
+            if(mapping[i] != -1 || temp_visited[i]) continue;
+            int j = assignment[depth+1][i];
+            matrix[i][j] += INF2;
+            depth++;
+            assignment[depth+1] = assignment[depth]; // copy from parent
+            inverse_assignment[depth+1] = inverse_assignment[depth];
+            alpha[depth+1] = alpha[depth];
+            beta[depth+1] = beta[depth];
+            assignment[depth+1][i] = -1;
+            inverse_assignment[depth+1][j] = -1;
+            int hung = Hungarian(0);
+            // auto [new_lb, new_ub] = LowerBound();
+            int new_lb = cost + ((hung + 1) / 2);
+            if(new_lb > lb_prime){
+            // if(new_lb > lb_prime && new_lb > tau){
+                lb_prime = new_lb;
+                uprime = i;
+                vprime = j;
+            }
+            // if(new_ub < current_best){
+            //     current_best = new_ub;
+            //     if(current_best <= tau){
+            //         flag = true;
+            //         return;
+            //     }
+            // }
+            matrix[i][j] -= INF2;
+            depth--;
+            if(lb_prime > tau) break;
+            for(int k = i+1; k < G1->GetNumVertices(); k++){
+                if(assignment[depth+2][k] != assignment[depth+1][k]){
+                    temp_visited[k] = true;
+                }
+            }
+        }
+        // if(depth == 0) printf("selected: %d, %d\n",uprime, vprime);
+        // if(uprime == -1){
+        //     for(int d = 0; d < G1->GetNumVertices(); d++){
+        //         uprime = matching_order[d];
+        //         if(mapping[uprime] == -1){
+        //             vprime = assignment[depth+1][uprime];
+        //             break;
+        //         }
+        //     }
+        // }
         DFS(uprime, vprime);
+        // if(depth==0) printf("depth 0, ged(G_%d, G_%d) = %d (%lld nodes)\n", G1->GetId(), G2->GetId(), current_best, cnt);
         // std::cout<< "ret "<< uprime<<' '<<vprime<<' '<<lb<<' '<<ub<<std::endl;
 
         if (flag)
             return;
+        uv.emplace(uprime, vprime);
         matrix[uprime][vprime] += INF2;
         assignment[depth+1][uprime] = -1;
         inverse_assignment[depth+1][vprime] = -1;
     }
 
-    for (int i = 0; i < G2->GetNumVertices(); i++)
-    {
-        if (matrix[uprime][i] >= INF2)
-        {
-            matrix[uprime][i] -= INF2;
-        }
+    while(!uv.empty()){
+        auto [uprime, vprime] = uv.top();
+        uv.pop();
+        matrix[uprime][vprime] -= INF2;
     }
 
-    if (depth != 0)
-    {
+    if (depth != 0){
         RestoreParikhVector(u, v);
         ComputeBranchDistanceMatrixDynamic(u, v, 0);
         mapping[u] = -1;
@@ -725,6 +974,7 @@ void DFS(int u, int v)
     }
     depth--;
 }
+
 int GED()
 {
     hgtime = 0.0;
@@ -744,15 +994,24 @@ int GED()
     // exit(0);
     current_best = ub;
     cnt++;
+    tau = lb;
+    // tau = threshold;
+    // current_best = std::min(current_best, tau+1);
     while(true){
         if(current_best <= tau) break;
+        // if(current_best <= threshold || threshold<tau) break;
         cnt--;
         depth = -1;
         DFS(-1, -1);
+        // break;
         // printf("tau, current_best: %d, %d\n", tau, current_best);
         tau++;
+        fprintf(stderr, "ged(G_%d, G_%d) = current_best: %d, current_depth: %d (%lld nodes)\n", G1->GetId(), G2->GetId(), current_best, tau-1, cnt);
+        // fflush(stdout);
     }
-    printf("ged(G_%d, G_%d) = %d (%d nodes)\n", G1->GetId(), G2->GetId(), current_best, cnt);
+
+    // DFS(-1, -1);
+    printf("ged(G_%d, G_%d) = %d (%lld nodes)\n", G1->GetId(), G2->GetId(), current_best, cnt);
     fflush(stdout);
     // filtering_lb = GEDVerificiationFiltering();
     // IterativeDeepningSearch();
