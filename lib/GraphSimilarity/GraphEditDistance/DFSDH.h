@@ -126,6 +126,7 @@ class DFSDH : public GraphEditDistanceSolver
                 if (matrix[i][j] < lx[i])
                     lx[i] = matrix[i][j];
             for (ui j = 0; j < n; j++)
+            // for(int j = n -1 ; j >= 0 ; j--)
                 if (my[j] == -1 && matrix[i][j] == lx[i])
                 {
                     mx[i] = j;
@@ -698,7 +699,8 @@ void DFS(int u, int v)
             break;
         }
         if (ub <= tau)
-        {
+        {   
+            // std::cout << assignment[depth] << "\n";
             flag = true;
             return;
         }
