@@ -29,8 +29,37 @@ namespace GraphLib {
         Scalable Graph Isomorphism: Combining Pairwise Color Refinement and
  Backtracking via Compressed Candidate Space, ICDE 2021
  */
+class BBGColorTree {
+public:
+  BBGColorTree *parent;
+  // int color;
+  std::vector<int> vertices;
+  std::vector<BBGColorTree *> children;
+  int height;
+  bool was_in_queue = false;
+  BBGColorTree(int h = 0) : parent(nullptr) {
+    was_in_queue = false;
+    height = h;
+  }
+
+  void Debug() { DebugHelper(); }
+
+  void DebugHelper(int indent = 0) {
+    std::cout << std::string(indent, ' ') << "Height: " << height << std::endl;
+    std::cout << std::string(indent, ' ') << "Vertices: ";
+    for (int v : vertices) {
+      std::cout << v << " ";
+    }
+    std::cout << std::endl;
+    std::cout << std::string(indent, ' ') << "Children: " << std::endl;
+    for (BBGColorTree *child : children) {
+      child->DebugHelper(indent + 2);
+    }
+  }
+};
+
 class StableColoring {
- protected:
+protected:
   LabeledGraph *G;
   int *S, stack_size;
   bool *in_stack, *used;
@@ -43,6 +72,10 @@ class StableColoring {
   int num_colors = 0;
   int max_color_degree = 0;
   std::vector<std::vector<int>> color_partition, aux;
+  BBGColorTree *root;
+  std::vector<BBGColorTree *> leaf_nodes;
+  std::vector<BBGColorTree *> vertex_to_leaf_node;
+  std::vector<BBGColorTree *> color_to_node;
   virtual void SplitUpColor(int s) {
     max_color_degree = max_cdeg[s];
     memset(num_cdeg, 0, sizeof(int) * (max_color_degree + 1));
@@ -50,7 +83,8 @@ class StableColoring {
     int b = 0;
     for (int v : aux[s]) {
       num_cdeg[cdeg[v]]++;
-      if (num_cdeg[cdeg[v]] > num_cdeg[b]) b = cdeg[v];
+      if (num_cdeg[cdeg[v]] > num_cdeg[b])
+        b = cdeg[v];
     }
     for (int i = 0; i <= max_color_degree; i++) {
       if (num_cdeg[i] >= 1) {
@@ -68,9 +102,40 @@ class StableColoring {
         }
       }
     }
+    BBGColorTree *prev_node = color_to_node[s];
+    BBGColorTree *aux_node = new BBGColorTree(prev_node->height + 1);
+    // find prev_node in leaf_nodes and remove it
+    leaf_nodes.erase(
+        std::find(leaf_nodes.begin(), leaf_nodes.end(), prev_node));
+    aux_node->parent = prev_node;
+    aux_node->vertices = prev_node->vertices;
+    prev_node->children.push_back(aux_node);
+    prev_node->vertices.clear();
+    color_to_node[s] = aux_node;
+    leaf_nodes.push_back(aux_node);
     for (int v : aux[s]) {
       int c = color_mapping[cdeg[v]];
-      if (c != s) ChangeColor(v, c);
+      if (c != s) {
+        ChangeColor(v, c);
+        auto it =
+            std::find(aux_node->vertices.begin(), aux_node->vertices.end(), v);
+        if (it != aux_node->vertices.end()) {
+          aux_node->vertices.erase(it);
+        }
+        if (color_to_node[c] == nullptr) {
+          BBGColorTree *new_node = new BBGColorTree(prev_node->height + 1);
+          new_node->parent = prev_node;
+          new_node->vertices.push_back(v);
+          prev_node->children.push_back(new_node);
+          color_to_node[c] = new_node;
+          vertex_to_leaf_node[v] = new_node;
+          leaf_nodes.push_back(new_node);
+        } else {
+          BBGColorTree *node = color_to_node[c];
+          node->vertices.push_back(v);
+          vertex_to_leaf_node[v] = node;
+        }
+      }
     }
   }
   virtual void ChangeColor(int v, int new_color) {
@@ -86,7 +151,7 @@ class StableColoring {
 
   int *perm;
 
- public:
+public:
   StableColoring(LabeledGraph *g) {
     G = g;
     num_color_cand = num_color_split = stack_size = 0;
@@ -118,6 +183,22 @@ class StableColoring {
     in_stack[current_color] = true;
     inv_idx[perm[0]] = color_partition[current_color].size();
     color_partition[current_color].push_back(perm[0]);
+
+    // Initialize color tree
+    root = new BBGColorTree();
+    vertex_to_leaf_node.resize(G->GetNumVertices());
+    color_to_node.resize(G->GetNumVertices(), nullptr);
+
+    // First color node
+    BBGColorTree *node = new BBGColorTree(1);
+    node->parent = root;
+    node->vertices.push_back(perm[0]);
+    root->children.push_back(node);
+    vertex_to_leaf_node[perm[0]] = node;
+    color_to_node[current_color] = node;
+    leaf_nodes.push_back(node);
+
+    // Initial coloring
     for (int i = 1; i < G->GetNumVertices(); i++) {
       int u = perm[i], v = perm[i - 1];
       int du = G->GetDegree(u), dv = G->GetDegree(v);
@@ -126,12 +207,23 @@ class StableColoring {
         current_color++;
         S[stack_size++] = current_color;
         in_stack[current_color] = true;
+        BBGColorTree *new_node = new BBGColorTree(1);
+        new_node->parent = root;
+        root->children.push_back(new_node);
+        color_to_node[current_color] = new_node;
+        leaf_nodes.push_back(new_node);
+        node = new_node;
       }
       color[u] = current_color;
       inv_idx[u] = color_partition[current_color].size();
       color_partition[current_color].push_back(u);
+      node->vertices.push_back(u);
+      vertex_to_leaf_node[u] = node;
     }
     num_colors = current_color + 1;
+
+    // Debug color tree
+    // root->Debug();
   }
 
   void RefineStep() {
@@ -139,15 +231,18 @@ class StableColoring {
     in_stack[r] = false;
     for (int v : color_partition[r]) {
       for (int w : G->GetNeighbors(v)) {
-        if (color_partition[color[w]].size() == 1) continue;
+        if (color_partition[color[w]].size() == 1)
+          continue;
         int c = color[w];
         cdeg[w]++;
-        if (cdeg[w] == 1) aux[c].push_back(w);
+        if (cdeg[w] == 1)
+          aux[c].push_back(w);
         if (!used[c]) {
           color_cand[num_color_cand++] = c;
           used[c] = true;
         }
-        if (cdeg[w] > max_cdeg[c]) max_cdeg[c] = cdeg[w];
+        if (cdeg[w] > max_cdeg[c])
+          max_cdeg[c] = cdeg[w];
       }
     }
     for (int i = 0; i < num_color_cand; i++) {
@@ -156,15 +251,19 @@ class StableColoring {
         min_cdeg[c] = 0;
       else {
         min_cdeg[c] = max_cdeg[c];
-        for (int v : aux[c]) min_cdeg[c] = std::min(min_cdeg[c], cdeg[v]);
+        for (int v : aux[c])
+          min_cdeg[c] = std::min(min_cdeg[c], cdeg[v]);
       }
-      if (min_cdeg[c] < max_cdeg[c]) color_split[num_color_split++] = c;
+      if (min_cdeg[c] < max_cdeg[c])
+        color_split[num_color_split++] = c;
     }
-    for (int i = 0; i < num_color_split; i++) SplitUpColor(color_split[i]);
+    for (int i = 0; i < num_color_split; i++)
+      SplitUpColor(color_split[i]);
     num_color_split = 0;
     for (int i = 0; i < num_color_cand; i++) {
       int c = color_cand[i];
-      for (int v : aux[c]) cdeg[v] = 0;
+      for (int v : aux[c])
+        cdeg[v] = 0;
       max_cdeg[c] = 0;
       min_cdeg[c] = 0;
       aux[c].clear();
@@ -183,7 +282,8 @@ class StableColoring {
     return color_partition[c];
   }
   void Individualize(int v) {
-    if (color_partition[color[v]].size() == 1) return;
+    if (color_partition[color[v]].size() == 1)
+      return;
     int new_color = num_colors++;
     ChangeColor(v, new_color);
     S[stack_size++] = new_color;
@@ -194,7 +294,7 @@ class StableColoring {
 };
 
 class PairwiseStableColoring : public StableColoring {
- private:
+private:
   std::vector<std::vector<std::pair<int, int>>> history;
   int VL, VR;
   int *left_color_count, *right_color_count;
@@ -219,7 +319,10 @@ class PairwiseStableColoring : public StableColoring {
     }
   }
 
- public:
+public:
+  std::vector<int> mapping;
+  std::vector<int> inverse_mapping;
+
   PairwiseStableColoring(LabeledGraph *g1, LabeledGraph *g2,
                          LabeledGraph *combined)
       : StableColoring(combined) {
@@ -300,15 +403,95 @@ class PairwiseStableColoring : public StableColoring {
   }
 
   inline int BinaryMapping(int u) {
-    if (GetNumVertexClass(u) != 1) return -1;
+    if (GetNumVertexClass(u) != 1)
+      return -1;
     int v = -u;
-    for (int x : color_partition[color[u]]) v += x;
+    for (int x : color_partition[color[u]])
+      v += x;
     return v;
+  }
+
+  void VertexMatching() {
+    root->was_in_queue = false;
+    const int combined_index = G->combined_index;
+    mapping = std::vector<int>(combined_index, -1);
+    inverse_mapping =
+        std::vector<int>(G->GetNumVertices() - combined_index, -1);
+    while (!leaf_nodes.empty()) {
+      // Debug
+      // for (auto leaf : leaf_nodes) {
+      //   for (int v : leaf->vertices) {
+      //     std::cout << v << " ";
+      //   }
+      //   std::cout << std::endl;
+      // }
+      // std::cout << std::endl;
+
+      BBGColorTree *leaf_node = leaf_nodes.back();
+      leaf_nodes.pop_back();
+
+      // Split the leaf node into two groups by the combined index
+      const int num_vertices = leaf_node->vertices.size();
+      int G1_index = 0, G2_index = 0, num_G1_vertices = 0, num_G2_vertices = 0;
+      std::sort(leaf_node->vertices.begin(), leaf_node->vertices.end());
+      for (int i = 0; i < num_vertices; ++i) {
+        if (leaf_node->vertices[i] < combined_index) {
+          num_G1_vertices++;
+        } else {
+          break;
+        }
+      }
+      G2_index = num_G1_vertices;
+      num_G2_vertices = num_vertices - num_G1_vertices;
+
+      // Match the vertices in the two groups
+      while (G1_index < num_G1_vertices && G2_index < num_vertices) {
+        const int u = leaf_node->vertices[G1_index];
+        const int v = leaf_node->vertices[G2_index];
+        mapping[u] = v - combined_index;
+        inverse_mapping[v - combined_index] = u;
+        G1_index++;
+        G2_index++;
+      }
+
+      // Add the remaining vertices to the parent node
+      if (num_G1_vertices != num_G2_vertices && leaf_node != root) {
+        int start_index =
+            num_G1_vertices > num_G2_vertices ? G1_index : G2_index;
+        int end_index =
+            num_G1_vertices > num_G2_vertices ? num_G1_vertices : num_vertices;
+        BBGColorTree *parent = leaf_node->parent;
+        for (int i = start_index; i < end_index; ++i) {
+          parent->vertices.push_back(leaf_node->vertices[i]);
+        }
+        if (parent->was_in_queue == false) {
+          for (int i = 0; i < leaf_nodes.size(); ++i) {
+            if (leaf_nodes[i]->height > parent->height) {
+              leaf_nodes.insert(leaf_nodes.begin() + i, parent);
+              parent->was_in_queue = true;
+              break;
+            }
+          }
+          if (parent->was_in_queue == false) {
+            leaf_nodes.push_back(parent);
+            parent->was_in_queue = true;
+          }
+        }
+      }
+    }
+
+    // print all mappings
+    // for (int i = 0; i < combined_index; ++i) {
+    //   printf("%d -> %d\n", i, mapping[i] + combined_index);
+    // }
+    // for (int i = 0; i < G->GetNumVertices() - combined_index; ++i) {
+    //   printf("%d -> %d\n", i + combined_index, inverse_mapping[i]);
+    // }
   }
 
   void PrintEntireColorPartition(int upto = 5) {
     fprintf(stdout, "Color info:\n");
-    for (int i = 0; i < std::min(GetNumColors(), upto); i++) {
+    for (int i = 0; i < std::min(GetNumColors(), GetNumColors()); i++) {
       fprintf(stdout, "  Color %d: %d left, %d right\n", i,
               GetLeftColorCount(i), GetRightColorCount(i));
       fprintf(stdout, "    Vertices: ");
@@ -317,6 +500,7 @@ class PairwiseStableColoring : public StableColoring {
       }
       fprintf(stdout, "\n");
     }
+    root->Debug();
   }
 };
-}  // namespace GraphLib
+} // namespace GraphLib
