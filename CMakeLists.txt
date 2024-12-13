@@ -35,8 +35,8 @@ else()
     message(STATUS "Configuring for an unknown OS")
 endif()
 
-FIND_PACKAGE(Boost REQUIRED)
-include_directories(${Boost_INCLUDE_DIRS})
+# FIND_PACKAGE(Boost REQUIRED)
+# include_directories(${Boost_INCLUDE_DIRS})
 include_directories(lib)
 
 #add_executable(GraphEditDistance driver/graph-edit-distance.cc)
