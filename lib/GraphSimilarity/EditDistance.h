@@ -270,43 +270,118 @@ public:
 
   int GetCurrentBestGED() const { return current_best; }
   ResultLogger GetLog() { return log; }
-
   void ComputeMatchingOrder() {
-    int N = G1->GetNumVertices();
-    std::vector<int> T(N, 0), w(N, 0);
-    auto vlabel_freq = G1->GetVertexLabelFrequency();
-    auto elabel_freq = G1->GetEdgeLabelFrequency();
-    for (int i = 0; i < N; i++) {
-      w[i] -= 2 * vlabel_freq[G1->GetVertexLabel(i)];
-      for (int x : G1->GetNeighbors(i)) {
-        w[i] -= elabel_freq[G1->GetEdgeLabel(i, x)];
+    int N = G2->GetNumVertices();
+    auto vlabel_freq = G2->GetVertexLabelFrequency();
+    auto elabel_freq = G2->GetEdgeLabelFrequency();
+    int root = 0;
+    int cnt = 0;
+    double root_weight = 0;
+    for(int i = 0 ; i < G1->GetNumVertices() ; i++){
+      double weight = 1 - vlabel_freq[G1->GetVertexLabel(i)]/double(G2->GetNumVertices());
+      // std::cout << weight << "\n";
+      for(auto j : G1->GetNeighbors(i)){
+        weight += 1 - elabel_freq[G1->GetEdgeLabel(i, j)]/double(G2->GetNumEdges() * 2);
+        // std::cout << elabel_freq[G1->GetEdgeLabel(i, j)] << " " <<weight<<"\n";
+      }
+      if(weight > root_weight){
+        root = i;
+        root_weight = weight;
+        // std::cout << i << " " << weight << "\n";
       }
     }
-    std::fill(T.begin(), T.end(), 0);
-    int max_idx = std::max_element(w.begin(), w.end()) - w.begin();
-    std::priority_queue<std::pair<int, int>> weighted_queue;
-    weighted_queue.push({w[max_idx], max_idx});
-    T[max_idx] = 1;
-    while (!weighted_queue.empty()) {
+
+    std::vector<double> w(G1->GetNumVertices(), 0);
+    std::vector<int> T(G1->GetNumVertices(), 0);
+    w[root] = root_weight;
+
+    std::priority_queue<std::pair<double, int>> weighted_queue;
+    weighted_queue.push({w[root], root});
+
+    while(!weighted_queue.empty()){
       int u = weighted_queue.top().second;
       weighted_queue.pop();
+      if(T[u] == 1){
+        // std::cout << matching_order.size() << " " <<G1->GetNumVertices() <<"\n";
+        continue;
+      }
+
       matching_order.push_back(u);
-      for (int x : G1->GetNeighbors(u)) {
-        if (T[x] == 1)
+      T[u] = 1;
+      // std::cout <<"pop : " << u << " " <<w[u] << " " << matching_order.size() <<  "\n";
+      for(auto v : G1->GetNeighbors(u)){
+        // std::cout << T[v] << "\n";
+        if(T[v] == 1){
           continue;
-        T[x] = 1;
-        weighted_queue.push({w[x], x});
+        }
+        if(w[v] < 10e-6){
+          w[v] += 1- vlabel_freq[G1->GetVertexLabel(v)]/double(G2->GetNumVertices()); 
+        }
+        w[v] += 1 - elabel_freq[G1->GetEdgeLabel(u, v)]/double(G2->GetNumEdges() * 2);
+        weighted_queue.push({w[v], v});
+        // std::cout << "push  : " << v << " " << w[v] << "\n";
       }
     }
-    for (int i = 0; i < N; i++) {
-      if (T[i] != 1) {
+    for(int i = 0 ; i < G1->GetNumVertices();i++){
+      if(T[i] == 0){
         matching_order.push_back(i);
       }
     }
-    inv_matching_order.resize(G1->GetNumVertices(), -1);
-    for (int i = 0; i < G1->GetNumVertices(); i++) {
-      inv_matching_order[matching_order[i]] = i;
-    }
+
+    // for(auto x : matching_order){
+    //   std::cout<< x << "\n";
+    // }
+
+
+
+    // int N = G1->GetNumVertices();
+    // std::vector<int> T(N, 0), w(N, 0);
+    // auto vlabel_freq = G1->GetVertexLabelFrequency();
+    // auto elabel_freq = G1->GetEdgeLabelFrequency();
+    // for (int i = 0; i < N; i++) {
+    //   w[i] -= 2 * vlabel_freq[G1->GetVertexLabel(i)];
+    //   for (int x : G1->GetNeighbors(i)) {
+    //     w[i] -= elabel_freq[G1->GetEdgeLabel(i, x)];
+    //   }
+    // }
+    // std::fill(T.begin(), T.end(), 0);
+    // int max_idx = std::max_element(w.begin(), w.end()) - w.begin();
+
+    // for(int i = 0 ; i < w.size();i++){
+    //   if(i != root){
+    //     w[i] = 0;
+    //     // std::cout << i << " " << w[i] << "\n";
+    //   }
+    // }
+    // std::priority_queue<std::pair<double, int>> weighted_queue;
+    // weighted_queue.push({w[max_idx], max_idx});
+    // T[max_idx] = 1;
+    // while (!weighted_queue.empty()) {
+    //   int u = weighted_queue.top().second;
+    //   // std::cout << u << " " << weighted_queue.top().first <<"\n";
+    //   weighted_queue.pop();
+    //   matching_order.push_back(u);
+    //   for (int x : G1->GetNeighbors(u)) {
+    //     if (T[x] == 1)
+    //       continue;
+    //     T[x] = 1;
+    //     if(w[x] < 10e-6){
+    //         w[x] += 1 - vlabel_freq[G1->GetVertexLabel(x)]/double(G2->GetNumVertices());
+    //     }
+    //     w[x] += 1 - elabel_freq[G1->GetEdgeLabel(x)]/double(G2->GetNumEdges() * 2);
+    //     weighted_queue.push({w[x], x});
+    //   }
+    // }
+    // for (int i = 0; i < N; i++) {
+    //   if (T[i] != 1) {
+    //     matching_order.push_back(i);
+    //   }
+    // }
+    // inv_matching_order.resize(G1->GetNumVertices(), -1);
+    // for (int i = 0; i < G1->GetNumVertices(); i++) {
+    //   inv_matching_order[matching_order[i]] = i;
+    //   std::cout << matching_order[i] << " ";
+    // }
   }
 
   int GetChildEditCost(State *parent_state, int u, int v) {
